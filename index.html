@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <title>Ranking Mobilizadores - BB</title>
 
-  <!-- Leitura local da biblioteca XLSX -->
+  <!-- XLSX local na raiz do projeto -->
   <script src="./xlsx.full.min.js"></script>
 
-  <!-- Html2Canvas permanece por CDN -->
+  <!-- Html2Canvas via CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
@@ -247,12 +247,12 @@
     <div class="subtitle">
       <strong>Linha 1:</strong> Prefixo / Agência / Carteira / Tipo de Carteira. 
       <strong>Linha 3:</strong> Cabeçalhos dos Mobilizadores (Nec. Dia, Rlz Dia, %Atg).
-      Cada painel abaixo usa apenas linhas com indicador válido e já sai pronto para exportar como PNG.
+      Cada painel usa apenas linhas com indicador válido no bloco correspondente e está pronto para exportar como PNG.
     </div>
   </div>
 
   <div class="upload-area">
-    <label for="file">Selecione o arquivo <strong>.xlsx</strong> (relatório 6500 estruturado):</label>
+    <label for="file">Selecione o arquivo <strong>.xlsx</strong> (relatório 6500):</label>
     <input type="file" id="file" accept=".xlsx" />
     <div class="status" id="status">Aguardando arquivo...</div>
   </div>
@@ -263,8 +263,8 @@
     const statusEl = document.getElementById("status");
     const cardsContainer = document.getElementById("cards-container");
 
-    const BASE_HEADER_ROW = 0; // Linha 1: Prefixo / Agência / Carteira / Tipo Carteira
-    const MOB_HEADER_ROW  = 2; // Linha 3: cabeçalhos dos mobilizadores
+    const BASE_HEADER_ROW = 0; // Linha 1
+    const MOB_HEADER_ROW  = 2; // Linha 3
 
     const mobilizadoresConfig = [
       { key: "desembolso_pf",        title: "Desembolso PF",           start: "G",  end: "K",  mode: "intradia" },
@@ -285,18 +285,21 @@
       const file = e.target.files[0];
       if (!file) return;
       statusEl.textContent = "Lendo planilha...";
+      console.log("[INFO] Arquivo selecionado:", file.name);
       const reader = new FileReader();
       reader.onload = function(ev) {
         try {
           const data = new Uint8Array(ev.target.result);
           const wb = XLSX.read(data, { type: "array" });
           const sheetName = wb.SheetNames[0];
+          console.log("[INFO] Aba usada:", sheetName);
           const ws = wb.Sheets[sheetName];
           const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
+          console.log("[INFO] Linhas lidas:", rows.length);
           buildRankings(rows);
         } catch (err) {
-          console.error(err);
-          statusEl.textContent = "Erro ao ler planilha. Verifique se está no padrão informado.";
+          console.error("[ERRO] Falha ao ler XLSX:", err);
+          statusEl.textContent = "Erro ao ler planilha. Confira se está no layout esperado.";
         }
       };
       reader.readAsArrayBuffer(file);
@@ -306,7 +309,8 @@
       cardsContainer.innerHTML = "";
 
       if (!rows || rows.length <= MOB_HEADER_ROW + 1) {
-        statusEl.textContent = "Planilha sem estrutura mínima (linhas 1 e 3).";
+        statusEl.textContent = "Planilha sem estrutura mínima (precisa ter pelo menos 4 linhas).";
+        console.warn("[WARN] Estrutura insuficiente.");
         return;
       }
 
@@ -318,6 +322,8 @@
       const cartIdx   = findColIndexInRow(baseHeader, ["Carteira"]);
       const tipoIdx   = findColIndexInRow(baseHeader, ["Tipo da Carteira", "Tipo Carteira"]);
 
+      console.log("[DEBUG] idx Prefixo/Agência/Carteira/Tipo:", prefixIdx, depIdx, cartIdx, tipoIdx);
+
       if ([prefixIdx, depIdx, cartIdx, tipoIdx].some(i => i === -1)) {
         statusEl.textContent = "Não encontrei Prefixo / Agência / Carteira / Tipo Carteira na linha 1.";
         return;
@@ -327,16 +333,17 @@
 
       mobilizadoresConfig.forEach(conf => {
         const idx = detectColumnsForMobilizador(mobHeader, conf);
+        console.log(`[DEBUG] ${conf.title} ->`, idx);
         const ranking = buildRankingForMobilizador(rows, conf, idx, {
           prefixIdx, depIdx, cartIdx, tipoIdx
         });
-        const card = createRankingCard(conf, ranking, idx);
+        const card = createRankingCard(conf, ranking);
         cardsContainer.appendChild(card);
         if (ranking.length) any = true;
       });
 
       statusEl.textContent = any
-        ? "Rankings gerados com sucesso. Use os botões para baixar cada painel em PNG."
+        ? "Rankings gerados. Use os botões em cada painel para baixar o PNG."
         : "Nenhuma linha elegível encontrada nos blocos dos Mobilizadores.";
     }
 
@@ -375,13 +382,11 @@
       const { mode } = conf;
       const { necIdx, rlzIdx, pctIdx } = idx;
       const { prefixIdx, depIdx, cartIdx, tipoIdx } = base;
-
       const ranking = [];
 
       for (let r = MOB_HEADER_ROW + 1; r < rows.length; r++) {
         const row = rows[r] || [];
         const prefixo = row[prefixIdx];
-
         if (prefixo == null || prefixo === "") continue;
 
         const dependencia  = row[depIdx];
@@ -396,8 +401,9 @@
           if (pct == null || isNaN(pct)) continue;
         } else {
           if (nec == null || isNaN(nec) || nec <= 0) continue;
-          if ((pct == null || isNaN(pct)) && rlz != null && !isNaN(rlz) && nec !== 0)
+          if ((pct == null || isNaN(pct)) && rlz != null && !isNaN(rlz) && nec !== 0) {
             pct = (rlz / nec) * 100;
+          }
           if (pct == null || isNaN(pct)) continue;
         }
 
@@ -492,4 +498,127 @@
         const tdPos = document.createElement("td");
         tdPos.className = "pos";
         tdPos.textContent = i + 1;
-        tr.appendChild
+        tr.appendChild(tdPos);
+
+        const tdPref = document.createElement("td");
+        tdPref.textContent = row.prefixo ?? "";
+        tr.appendChild(tdPref);
+
+        const tdDep = document.createElement("td");
+        tdDep.textContent = row.dependencia ?? "";
+        tr.appendChild(tdDep);
+
+        const tdCart = document.createElement("td");
+        tdCart.textContent = row.carteira ?? "";
+        tr.appendChild(tdCart);
+
+        const tdTipo = document.createElement("td");
+        tdTipo.textContent = row.tipoCarteira ?? "";
+        tr.appendChild(tdTipo);
+
+        const tdNec = document.createElement("td");
+        tdNec.className = "num";
+        tdNec.textContent = row.necDia != null ? formatNumber(row.necDia) : "-";
+        tr.appendChild(tdNec);
+
+        const tdRlz = document.createElement("td");
+        tdRlz.className = "num";
+        tdRlz.textContent = row.rlzDia != null ? formatNumber(row.rlzDia) : "-";
+        tr.appendChild(tdRlz);
+
+        const tdPct = document.createElement("td");
+        tdPct.className = "pct " + pctClass(row.pct);
+        tdPct.textContent = row.pct != null ? row.pct.toFixed(2) + "%" : "-";
+        tr.appendChild(tdPct);
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      card.appendChild(table);
+
+      const note = document.createElement("div");
+      note.className = "small-note";
+      note.textContent =
+        conf.mode === "icred"
+          ? "Critério: %Atg válido no bloco Y–Z. Ordenado de maior para menor."
+          : "Critério: Nec. Dia > 0 no bloco do Mobilizador; %Atg da planilha ou calculado (Rlz/Nec). Ordenado de maior para menor.";
+      card.appendChild(note);
+
+      return card;
+    }
+
+    // Utilitários
+
+    function colToIndex(col) {
+      let c = 0;
+      const up = col.toUpperCase();
+      for (let i = 0; i < up.length; i++) {
+        c = c * 26 + (up.charCodeAt(i) - 64);
+      }
+      return c - 1;
+    }
+
+    function normalize(str) {
+      return str
+        .toString()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9%]/g, "");
+    }
+
+    function toNumber(v) {
+      if (v == null || v === "") return null;
+      const s = v.toString().replace("%","").replace(/\./g,"").replace(",",".");
+      const n = parseFloat(s);
+      return isNaN(n) ? null : n;
+    }
+
+    function formatNumber(n) {
+      const num = Number(n);
+      if (isNaN(num)) return "";
+      return num.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    }
+
+    function pctClass(pct) {
+      if (pct == null) return "";
+      if (pct >= 105) return "good";
+      if (pct >= 90)  return "medium";
+      return "bad";
+    }
+
+    async function downloadCardAsPNG(cardEl, filename) {
+      const clone = cardEl.cloneNode(true);
+      clone.style.position = "fixed";
+      clone.style.left = "0";
+      clone.style.top = "0";
+      clone.style.width = "1280px";
+      clone.style.maxWidth = "1280px";
+      clone.style.margin = "0";
+      clone.style.zIndex = "-1";
+      clone.style.boxShadow = "none";
+      clone.style.borderRadius = "24px";
+      clone.style.background = "#ffffff";
+      document.body.appendChild(clone);
+
+      try {
+        const canvas = await html2canvas(clone, {
+          scale: 3,
+          backgroundColor: "#ffffff",
+          useCORS: true
+        });
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      } catch (e) {
+        console.error("[ERRO] PNG:", e);
+        alert("Erro ao gerar PNG deste painel.");
+      } finally {
+        document.body.removeChild(clone);
+      }
+    }
+  </script>
+</body>
+</html>
