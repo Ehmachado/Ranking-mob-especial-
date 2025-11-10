@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ranking Mobilizadores - Seguridade</title>
+  <!-- SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --bb-blue: #003399;
+      --bb-blue-dark: #001f66;
+      --bb-yellow: #ffcc00;
+      --bb-gray: #f4f4f4;
+      --bb-text: #0c1633;
+      --radius-xl: 22px;
+      --shadow-soft: 0 10px 24px rgba(0,0,0,0.18);
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: var(--font);
+      background: radial-gradient(circle at top, #0d1b4c 0, #000814 40%, #000 100%);
+      color: #fff;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--bb-yellow);
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #cbd5ff;
+      margin-bottom: 18px;
+    }
+
+    .upload-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.45);
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+    }
+
+    .upload-area label {
+      font-size: 13px;
+      color: #dbe4ff;
+    }
+
+    input[type="file"] {
+      color: #fff;
+      font-size: 12px;
+    }
+
+    .status {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-left: auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      position: relative;
+      padding: 14px 14px 12px;
+      border-radius: var(--radius-xl);
+      background: radial-gradient(circle at top left, rgba(255,204,0,0.09), transparent),
+                  linear-gradient(160deg, rgba(0,33,102,0.98), rgba(0,0,0,0.98));
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--bb-yellow);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .card-subtitle {
+      font-size: 10px;
+      color: #9ca3af;
+    }
+
+    .badge {
+      font-size: 9px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(255,204,0,0.16);
+      color: var(--bb-yellow);
+      border: 1px solid rgba(255,204,0,0.45);
+      text-transform: uppercase;
+    }
+
+    .btn-png {
+      font-size: 9px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: var(--bb-yellow);
+      color: #000814;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+      white-space: nowrap;
+    }
+
+    .btn-png span {
+      font-size: 11px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9px;
+      color: #e5e7eb;
+      overflow: hidden;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.55);
+    }
+
+    thead {
+      background: linear-gradient(90deg, rgba(255,204,0,0.16), transparent);
+    }
+
+    th, td {
+      padding: 4px 5px;
+      text-align: left;
+      border-bottom: 1px solid rgba(148,163,253,0.08);
+    }
+
+    th {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #facc15;
+      font-weight: 600;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr:nth-child(odd) {
+      background: rgba(17,24,39,0.55);
+    }
+
+    .pos {
+      font-weight: 700;
+      color: var(--bb-yellow);
+      width: 22px;
+    }
+
+    .pct {
+      font-weight: 700;
+    }
+
+    .pct.good {
+      color: #22c55e;
+    }
+
+    .pct.medium {
+      color: #facc15;
+    }
+
+    .pct.bad {
+      color: #f97316;
+    }
+
+    .small-note {
+      font-size: 9px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
+    .empty {
+      font-size: 9px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <h1>Ranking por Mobilizador</h1>
+  <div class="subtitle">
+    Upload da planilha consolidada (layout 6500). Cada card abaixo mostra apenas agências/carteiras com
+    <strong>Nec. Dia</strong> (ou %Atg no Icred) para aquele Mobilizador.
+  </div>
+
+  <div class="upload-area">
+    <label for="file">Selecione o arquivo <strong>.xlsx</strong>:</label>
+    <input type="file" id="file" accept=".xlsx" />
+    <div class="status" id="status">Aguardando arquivo...</div>
+  </div>
+
+  <div class="grid" id="cards-container"></div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const cardsContainer = document.getElementById("cards-container");
+
+    document.getElementById("file").addEventListener("change", handleFile, false);
+
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      statusEl.textContent = "Lendo planilha...";
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          const data = new Uint8Array(ev.target.result);
+          const wb = XLSX.read(data, { type: "array" });
+          const sheetName = wb.SheetNames[0];
+          const ws = wb.Sheets[sheetName];
+
+          // Lê como matriz [linhas][colunas]
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
+
+          buildRankings(rows);
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = "Erro ao ler planilha. Verifique o arquivo.";
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function buildRankings(rows) {
+      if (!rows || rows.length < 4) {
+        statusEl.textContent = "Planilha inválida ou sem dados suficientes.";
+        return;
+      }
+
+      const row0 = rows[0] || [];
+      const row1 = rows[1] || [];
+      const row2 = rows[2] || [];
+
+      const prefixIdx = findColIndex(rows, "Prefixo");
+      const depIdx = findColIndex(rows, "Dependência");
+      const cartIdx = findColIndex(rows, "Carteira");
+      const tipoIdx = findColIndex(rows, "Tipo da Carteira");
+
+      if ([prefixIdx, depIdx, cartIdx, tipoIdx].some(i => i === -1)) {
+        statusEl.textContent = "Não encontrei colunas básicas (Prefixo, Dependência, Carteira, Tipo da Carteira).";
+        return;
+      }
+
+      // Detecta blocos por Mobilizador usando a primeira linha (row0)
+      const mobilizadoresConfig = {};
+
+      function defineMobilizador(label, friendlyName, opts = {}) {
+        const block = findMobilizadorBlock(row0, label);
+        if (!block) return;
+
+        // Localiza colunas Intradia / Nec / Rlz / (%) Atg dentro do bloco
+        let necIdx = null, rlzIdx = null, pctIdx = null;
+
+        if (opts.type === "icred") {
+          // Icred 15/90: só usa (%) Atg dentro do bloco
+          for (let c = block.start; c <= block.end; c++) {
+            const v2 = (row2[c] || "").toString().trim();
+            if (v2 === "(%) Atg") {
+              pctIdx = c;
+              break;
+            }
+          }
+        } else {
+          // Mobilizadores com Intradia
+          for (let c = block.start; c <= block.end; c++) {
+            const v2 = (row2[c] || "").toString().trim();
+            if (v2 === "Nec. Dia") necIdx = c;
+            if (v2 === "Rlz Dia") rlzIdx = c;
+          }
+          if (rlzIdx != null) {
+            for (let c = rlzIdx + 1; c <= block.end; c++) {
+              const v2 = (row2[c] || "").toString().trim();
+              if (v2 === "(%) Atg") {
+                pctIdx = c;
+                break;
+              }
+            }
+          }
+        }
+
+        mobilizadoresConfig[friendlyName] = {
+          label,
+          friendlyName,
+          block,
+          necIdx,
+          rlzIdx,
+          pctIdx,
+          specialType: opts.type || "default"
+        };
+      }
+
+      defineMobilizador("Mobilizador Desembolso PF", "Desembolso PF");
+      defineMobilizador("Mobilizador Desembolso Giro", "Desembolso Giro");
+      defineMobilizador("Mobilizador Desembolso Agro", "Desembolso Agro");
+      defineMobilizador("Mobilizador Regulariza Dívidas Agro", "Regulariza Dívidas Agro");
+      defineMobilizador("Mobilizador Portfólio Priorizado", "Portfólio Priorizado");
+      defineMobilizador("Mobilizador Icred 15/90", "Icred 15/90", { type: "icred" });
+
+      cardsContainer.innerHTML = "";
+
+      Object.values(mobilizadoresConfig).forEach(conf => {
+        if (!conf.block) return;
+        const ranking = buildRankingForMobilizador(rows, conf, {
+          prefixIdx, depIdx, cartIdx, tipoIdx
+        });
+        createRankingCard(conf, ranking);
+      });
+
+      statusEl.textContent = "Rankings gerados a partir da planilha.";
+    }
+
+    function findColIndex(rows, label) {
+      const maxHeaderRows = 3;
+      for (let r = 0; r < Math.min(maxHeaderRows, rows.length); r++) {
+        const row = rows[r] || [];
+        for (let c = 0; c < row.length; c++) {
+          if ((row[c] || "").toString().trim() === label) {
+            return c;
+          }
+        }
+      }
+      return -1;
+    }
+
+    function findMobilizadorBlock(row0, label) {
+      let start = -1;
+      for (let c = 0; c < row0.length; c++) {
+        if ((row0[c] || "").toString().trim() === label) {
+          start = c;
+          break;
+        }
+      }
+      if (start === -1) return null;
+      let end = row0.length - 1;
+      for (let c = start + 1; c < row0.length; c++) {
+        const v = (row0[c] || "").toString().trim();
+        if (v.startsWith("Mobilizador ") && v !== label) {
+          end = c - 1;
+          break;
+        }
+      }
+      return { start, end };
+    }
+
+    function buildRankingForMobilizador(rows, conf, baseIdx) {
+      const { prefixIdx, depIdx, cartIdx, tipoIdx } = baseIdx;
+      const ranking = [];
+
+      for (let r = 3; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const prefixo = row[prefixIdx];
+        if (prefixo == null || prefixo === "" || isNaN(prefixo)) continue;
+
+        const nec = conf.necIdx != null ? toNumber(row[conf.necIdx]) : null;
+        const rlz = conf.rlzIdx != null ? toNumber(row[conf.rlzIdx]) : null;
+        let pct = conf.pctIdx != null ? toNumber(row[conf.pctIdx]) : null;
+
+        if (conf.specialType === "icred") {
+          // Icred: entra se tiver %Atg
+          if (pct == null || isNaN(pct)) continue;
+        } else {
+          // Mobilizadores com Intradia:
+          // Só entra se tem Nec. Dia (>0, não vazio)
+          if (nec == null || isNaN(nec) || nec <= 0) continue;
+
+          // Se não tiver %Atg e tiver Nec+Rlz, calcula
+          if ((pct == null || isNaN(pct)) && rlz != null && !isNaN(rlz) && nec !== 0) {
+            pct = (rlz / nec) * 100;
+          }
+
+          // Se ainda não tiver %Atg, pula
+          if (pct == null || isNaN(pct)) continue;
+        }
+
+        ranking.push({
+          prefixo: prefixo,
+          dependencia: row[depIdx],
+          carteira: row[cartIdx],
+          tipoCarteira: row[tipoIdx],
+          necDia: nec,
+          rlzDia: rlz,
+          pct: pct
+        });
+      }
+
+      // Ordena por %Atg desc
+      ranking.sort((a, b) => (b.pct || 0) - (a.pct || 0));
+      return ranking;
+    }
+
+    function toNumber(v) {
+      if (v == null || v === "") return null;
+      const n = parseFloat(("" + v).replace("%", "").replace(",", "."));
+      return isNaN(n) ? null : n;
+    }
+
+    function pctClass(pct) {
+      if (pct == null) return "";
+      if (pct >= 105) return "good";
+      if (pct >= 90) return "medium";
+      return "bad";
+    }
+
+    function createRankingCard(conf, ranking) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.id = `card-${conf.friendlyName.replace(/\s+/g, "-")}`;
+
+      const header = document.createElement("div");
+      header.className = "card-header";
+
+      const left = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "card-title";
+      title.textContent = `Mobilizador ${conf.friendlyName}`;
+      const subtitle = document.createElement("div");
+      subtitle.className = "card-subtitle";
+      subtitle.textContent =
+        conf.specialType === "icred"
+          ? "Ranking por % Atg (somente onde houver indicador)"
+          : "Ranking por % Atg Intradia (Nec. Dia > 0)";
+
+      left.appendChild(title);
+      left.appendChild(subtitle);
+
+      const right = document.createElement("div");
+      right.style.display = "flex";
+      right.style.alignItems = "center";
+      right.style.gap = "6px";
+
+      const badge = document.createElement("div");
+      badge.className = "badge";
+      badge.textContent = ranking.length
+        ? `${ranking.length} linhas com Nec. Dia`
+        : "Sem linhas com Nec. Dia";
+      right.appendChild(badge);
+
+      const btn = document.createElement("button");
+      btn.className = "btn-png";
+      btn.innerHTML = '<span>⬇</span><span>Baixar PNG</span>';
+      btn.onclick = () => downloadCardAsPNG(card, `ranking-${conf.friendlyName.replace(/\s+/g, "_")}.png`);
+      right.appendChild(btn);
+
+      header.appendChild(left);
+      header.appendChild(right);
+
+      card.appendChild(header);
+
+      if (!ranking.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "Nenhum Prefixo/Carteira com Nec. Dia para este Mobilizador.";
+        card.appendChild(empty);
+      } else {
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const hr = document.createElement("tr");
+        ["#", "Prefixo", "Dependência", "Carteira", "Tipo Carteira", "Nec. Dia", "Rlz Dia", "% Atg"]
+          .forEach(h => {
+            const th = document.createElement("th");
+            th.textContent = h;
+            hr.appendChild(th);
+          });
+        thead.appendChild(hr);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        ranking.forEach((row, idx) => {
+          const tr = document.createElement("tr");
+
+          const tdPos = document.createElement("td");
+          tdPos.className = "pos";
+          tdPos.textContent = idx + 1;
+          tr.appendChild(tdPos);
+
+          const tdPref = document.createElement("td");
+          tdPref.textContent = row.prefixo ?? "";
+          tr.appendChild(tdPref);
+
+          const tdDep = document.createElement("td");
+          tdDep.textContent = row.dependencia ?? "";
+          tr.appendChild(tdDep);
+
+          const tdCart = document.createElement("td");
+          tdCart.textContent = row.carteira ?? "";
+          tr.appendChild(tdCart);
+
+          const tdTipo = document.createElement("td");
+          tdTipo.textContent = row.tipoCarteira ?? "";
+          tr.appendChild(tdTipo);
+
+          const tdNec = document.createElement("td");
+          tdNec.textContent = row.necDia != null ? formatNumber(row.necDia) : "-";
+          tr.appendChild(tdNec);
+
+          const tdRlz = document.createElement("td");
+          tdRlz.textContent = row.rlzDia != null ? formatNumber(row.rlzDia) : "-";
+          tr.appendChild(tdRlz);
+
+          const tdPct = document.createElement("td");
+          tdPct.className = "pct " + pctClass(row.pct);
+          tdPct.textContent = row.pct != null ? row.pct.toFixed(2) + "%" : "-";
+          tr.appendChild(tdPct);
+
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        card.appendChild(table);
+
+        const note = document.createElement("div");
+        note.className = "small-note";
+        note.textContent =
+          "Critério: somente linhas com Nec. Dia (>0) para este Mobilizador (Icred: usa apenas %Atg). Ordenado por %Atg desc.";
+        card.appendChild(note);
+      }
+
+      cardsContainer.appendChild(card);
+    }
+
+    function formatNumber(v) {
+      const n = Number(v);
+      if (isNaN(n)) return v;
+      if (Math.abs(n) >= 1000) {
+        return n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+      }
+      return n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    }
+
+    async function downloadCardAsPNG(cardEl, filename) {
+      const originalScroll = { x: window.scrollX, y: window.scrollY };
+      window.scrollTo(0, 0);
+
+      const clone = cardEl.cloneNode(true);
+      clone.style.margin = "0";
+      clone.style.position = "absolute";
+      clone.style.left = "-9999px";
+      clone.style.top = "0";
+      clone.style.boxShadow = "none";
+      clone.style.transform = "scale(1)";
+      clone.style.width = "900px"; /* para PNG widescreen bonito */
+      document.body.appendChild(clone);
+
+      await html2canvas(clone, {
+        scale: 3,
+        backgroundColor: "#001022",
+        useCORS: true
+      }).then(canvas => {
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      }).catch(err => {
+        console.error(err);
+        alert("Erro ao gerar PNG.");
+      });
+
+      document.body.removeChild(clone);
+      window.scrollTo(originalScroll.x, originalScroll.y);
+    }
+  </script>
+</body>
+</html>
