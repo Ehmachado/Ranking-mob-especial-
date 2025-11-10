@@ -3,8 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <title>Ranking Mobilizadores - BB</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- Leitura local da biblioteca XLSX -->
+  <script src="./xlsx.full.min.js"></script>
+
+  <!-- Html2Canvas permanece por CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
   <style>
     :root {
       --bb-blue: #0033a0;
@@ -241,8 +246,8 @@
     <h1>Painéis de Ranking por Mobilizador</h1>
     <div class="subtitle">
       <strong>Linha 1:</strong> Prefixo / Agência / Carteira / Tipo de Carteira. 
-      <strong>Linha 3:</strong> cabeçalhos dos Mobilizadores (Nec. Dia, Rlz Dia, %Atg).
-      Cada painel abaixo usa apenas linhas com indicador válido no bloco daquele Mobilizador e já sai pronto para exportar como PNG.
+      <strong>Linha 3:</strong> Cabeçalhos dos Mobilizadores (Nec. Dia, Rlz Dia, %Atg).
+      Cada painel abaixo usa apenas linhas com indicador válido e já sai pronto para exportar como PNG.
     </div>
   </div>
 
@@ -258,8 +263,8 @@
     const statusEl = document.getElementById("status");
     const cardsContainer = document.getElementById("cards-container");
 
-    const BASE_HEADER_ROW = 0; // Prefixo / Agência / Carteira / Tipo Carteira
-    const MOB_HEADER_ROW  = 2; // Nec. Dia / Rlz Dia / %Atg dentro dos blocos
+    const BASE_HEADER_ROW = 0; // Linha 1: Prefixo / Agência / Carteira / Tipo Carteira
+    const MOB_HEADER_ROW  = 2; // Linha 3: cabeçalhos dos mobilizadores
 
     const mobilizadoresConfig = [
       { key: "desembolso_pf",        title: "Desembolso PF",           start: "G",  end: "K",  mode: "intradia" },
@@ -388,17 +393,11 @@
         let pct = pctIdx != null ? toNumber(row[pctIdx]) : null;
 
         if (mode === "icred") {
-          // Entra só se tiver %Atg válido
           if (pct == null || isNaN(pct)) continue;
         } else {
-          // Mobilizadores com intradia: exige Nec. Dia > 0
           if (nec == null || isNaN(nec) || nec <= 0) continue;
-
-          // Se não tiver %Atg mas tiver Nec + Rlz, calcula
-          if ((pct == null || isNaN(pct)) && rlz != null && !isNaN(rlz) && nec !== 0) {
+          if ((pct == null || isNaN(pct)) && rlz != null && !isNaN(rlz) && nec !== 0)
             pct = (rlz / nec) * 100;
-          }
-
           if (pct == null || isNaN(pct)) continue;
         }
 
@@ -417,7 +416,7 @@
       return ranking;
     }
 
-    function createRankingCard(conf, ranking, idx) {
+    function createRankingCard(conf, ranking) {
       const card = document.createElement("div");
       card.className = "card";
       card.id = `card-${conf.key}`;
@@ -493,126 +492,4 @@
         const tdPos = document.createElement("td");
         tdPos.className = "pos";
         tdPos.textContent = i + 1;
-        tr.appendChild(tdPos);
-
-        const tdPref = document.createElement("td");
-        tdPref.textContent = row.prefixo ?? "";
-        tr.appendChild(tdPref);
-
-        const tdDep = document.createElement("td");
-        tdDep.textContent = row.dependencia ?? "";
-        tr.appendChild(tdDep);
-
-        const tdCart = document.createElement("td");
-        tdCart.textContent = row.carteira ?? "";
-        tr.appendChild(tdCart);
-
-        const tdTipo = document.createElement("td");
-        tdTipo.textContent = row.tipoCarteira ?? "";
-        tr.appendChild(tdTipo);
-
-        const tdNec = document.createElement("td");
-        tdNec.className = "num";
-        tdNec.textContent = row.necDia != null ? formatNumber(row.necDia) : "-";
-        tr.appendChild(tdNec);
-
-        const tdRlz = document.createElement("td");
-        tdRlz.className = "num";
-        tdRlz.textContent = row.rlzDia != null ? formatNumber(row.rlzDia) : "-";
-        tr.appendChild(tdRlz);
-
-        const tdPct = document.createElement("td");
-        tdPct.className = "pct " + pctClass(row.pct);
-        tdPct.textContent = row.pct != null ? row.pct.toFixed(2) + "%" : "-";
-        tr.appendChild(tdPct);
-
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      card.appendChild(table);
-
-      const note = document.createElement("div");
-      note.className = "small-note";
-      note.textContent =
-        conf.mode === "icred"
-          ? "Critério: %Atg válido no bloco Y–Z. Ordenado de maior para menor."
-          : "Critério: Nec. Dia > 0 no bloco do Mobilizador; %Atg da planilha ou calculado (Rlz/Nec). Ordenado de maior para menor.";
-      card.appendChild(note);
-
-      return card;
-    }
-
-    // Utilitários
-
-    function colToIndex(col) {
-      let c = 0;
-      for (let i = 0; i < col.length; i++) {
-        c = c * 26 + (col.charCodeAt(i) - 64);
-      }
-      return c - 1;
-    }
-
-    function normalize(str) {
-      return str
-        .toString()
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9%]/g, "");
-    }
-
-    function toNumber(v) {
-      if (v == null || v === "") return null;
-      const s = v.toString().replace("%","").replace(/\./g,"").replace(",",".");
-      const n = parseFloat(s);
-      return isNaN(n) ? null : n;
-    }
-
-    function formatNumber(n) {
-      const num = Number(n);
-      if (isNaN(num)) return "";
-      return num.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
-    }
-
-    function pctClass(pct) {
-      if (pct == null) return "";
-      if (pct >= 105) return "good";
-      if (pct >= 90)  return "medium";
-      return "bad";
-    }
-
-    async function downloadCardAsPNG(cardEl, filename) {
-      const clone = cardEl.cloneNode(true);
-      clone.style.position = "fixed";
-      clone.style.left = "0";
-      clone.style.top = "0";
-      clone.style.width = "1280px";
-      clone.style.maxWidth = "1280px";
-      clone.style.margin = "0";
-      clone.style.zIndex = "-1";
-      clone.style.boxShadow = "none";
-      clone.style.borderRadius = "24px";
-      clone.style.background = "#ffffff";
-      document.body.appendChild(clone);
-
-      try {
-        const canvas = await html2canvas(clone, {
-          scale: 3,
-          backgroundColor: "#ffffff",
-          useCORS: true
-        });
-        const link = document.createElement("a");
-        link.download = filename;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-      } catch (e) {
-        console.error(e);
-        alert("Erro ao gerar PNG deste painel.");
-      } finally {
-        document.body.removeChild(clone);
-      }
-    }
-  </script>
-</body>
-</html>
+        tr.appendChild
