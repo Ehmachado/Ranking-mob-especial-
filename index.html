@@ -245,9 +245,8 @@
     <div class="brand-pill">Ranking Mobilizadores • Banco do Brasil</div>
     <h1>Painéis de Ranking por Mobilizador</h1>
     <div class="subtitle">
-      <strong>Linha 1:</strong> Prefixo / Agência / Carteira / Tipo de Carteira. 
-      <strong>Linha 3:</strong> Cabeçalhos dos Mobilizadores (Nec. Dia, Rlz Dia, %Atg).
-      Cada painel usa apenas linhas com indicador válido no bloco correspondente e está pronto para exportar como PNG.
+      Linha 1: Prefixo / Agência / Carteira / Tipo de Carteira. Linha 3: cabeçalhos dos Mobilizadores.
+      Cada painel usa somente as colunas do seu bloco e apenas linhas com indicador válido para aquele Mobilizador.
     </div>
   </div>
 
@@ -263,21 +262,106 @@
     const statusEl = document.getElementById("status");
     const cardsContainer = document.getElementById("cards-container");
 
-    const BASE_HEADER_ROW = 0; // Linha 1
-    const MOB_HEADER_ROW  = 2; // Linha 3
+    const BASE_HEADER_ROW = 0;    // Linha 1
+    const DATA_START_ROW  = 3;    // Dados a partir da linha 4
 
-    const mobilizadoresConfig = [
-      { key: "desembolso_pf",        title: "Desembolso PF",           start: "G",  end: "K",  mode: "intradia" },
-      { key: "desembolso_giro",      title: "Desembolso Giro",         start: "M",  end: "Q",  mode: "intradia" },
-      { key: "desembolso_agro",      title: "Desembolso Agro",         start: "S",  end: "W",  mode: "intradia" },
-      { key: "icred_1590",           title: "Icred 15/90",             start: "Y",  end: "Z",  mode: "icred"    },
-      { key: "regulariza_agro",      title: "Regulariza Dívidas Agro", start: "AB", end: "AF", mode: "intradia" },
-      { key: "portfolio_priorizado", title: "Portfólio Priorizado",    start: "AH", end: "AL", mode: "intradia" }
-    ].map(conf => ({
-      ...conf,
-      startIdx: colToIndex(conf.start),
-      endIdx: colToIndex(conf.end)
-    }));
+    // Conversão A, B, ..., Z, AA, AB etc para índice 0-based
+    function colToIndex(col) {
+      col = col.toUpperCase();
+      let c = 0;
+      for (let i = 0; i < col.length; i++) {
+        c = c * 26 + (col.charCodeAt(i) - 64);
+      }
+      return c - 1;
+    }
+
+    function normalize(str) {
+      if (str === null || str === undefined) return "";
+      return str
+        .toString()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9%]/g, "");
+    }
+
+    function toNumber(v) {
+      if (v === null || v === undefined || v === "") return null;
+      const s = v.toString().replace("%", "").replace(/\./g, "").replace(",", ".");
+      const n = parseFloat(s);
+      return isNaN(n) ? null : n;
+    }
+
+    function formatNumber(n) {
+      const num = Number(n);
+      if (isNaN(num)) return "";
+      return num.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    }
+
+    function pctClass(pct) {
+      if (pct == null) return "";
+      if (pct >= 105) return "good";
+      if (pct >= 90)  return "medium";
+      return "bad";
+    }
+
+    // Config baseada diretamente no layout da planilha enviada
+    const mobilizadores = [
+      {
+        key: "desembolso_pf",
+        title: "Desembolso PF",
+        mode: "intradia",
+        rangeLabel: "G–K",
+        necIdx: colToIndex("I"),
+        rlzIdx: colToIndex("J"),
+        pctIdx: colToIndex("K")
+      },
+      {
+        key: "desembolso_giro",
+        title: "Desembolso Giro",
+        mode: "intradia",
+        rangeLabel: "M–Q",
+        necIdx: colToIndex("O"),
+        rlzIdx: colToIndex("P"),
+        pctIdx: colToIndex("Q")
+      },
+      {
+        key: "desembolso_agro",
+        title: "Desembolso Agro",
+        mode: "intradia",
+        rangeLabel: "S–W",
+        necIdx: colToIndex("U"),
+        rlzIdx: colToIndex("V"),
+        pctIdx: colToIndex("W")
+      },
+      {
+        key: "icred_1590",
+        title: "Icred 15/90",
+        mode: "icred",
+        rangeLabel: "Y–Z",
+        necIdx: null,
+        rlzIdx: null,
+        pctIdx: colToIndex("Y") // %Atg Icred
+      },
+      {
+        key: "regulariza_agro",
+        title: "Regulariza Dívidas Agro",
+        mode: "intradia",
+        rangeLabel: "AB–AF",
+        necIdx: colToIndex("AD"),
+        rlzIdx: colToIndex("AE"),
+        pctIdx: colToIndex("AF")
+      },
+      {
+        key: "portfolio_priorizado",
+        title: "Portfólio Priorizado",
+        mode: "intradia",
+        rangeLabel: "AH–AL",
+        necIdx: colToIndex("AJ"),
+        rlzIdx: colToIndex("AK"),
+        pctIdx: colToIndex("AL")
+      }
+    ];
 
     document.getElementById("file").addEventListener("change", handleFile, false);
 
@@ -285,44 +369,39 @@
       const file = e.target.files[0];
       if (!file) return;
       statusEl.textContent = "Lendo planilha...";
-      console.log("[INFO] Arquivo selecionado:", file.name);
       const reader = new FileReader();
+
       reader.onload = function(ev) {
         try {
           const data = new Uint8Array(ev.target.result);
           const wb = XLSX.read(data, { type: "array" });
           const sheetName = wb.SheetNames[0];
-          console.log("[INFO] Aba usada:", sheetName);
           const ws = wb.Sheets[sheetName];
           const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
-          console.log("[INFO] Linhas lidas:", rows.length);
           buildRankings(rows);
         } catch (err) {
-          console.error("[ERRO] Falha ao ler XLSX:", err);
+          console.error(err);
           statusEl.textContent = "Erro ao ler planilha. Confira se está no layout esperado.";
         }
       };
+
       reader.readAsArrayBuffer(file);
     }
 
     function buildRankings(rows) {
       cardsContainer.innerHTML = "";
 
-      if (!rows || rows.length <= MOB_HEADER_ROW + 1) {
-        statusEl.textContent = "Planilha sem estrutura mínima (precisa ter pelo menos 4 linhas).";
-        console.warn("[WARN] Estrutura insuficiente.");
+      if (!rows || rows.length <= DATA_START_ROW) {
+        statusEl.textContent = "Planilha sem linhas de dados.";
         return;
       }
 
       const baseHeader = rows[BASE_HEADER_ROW] || [];
-      const mobHeader  = rows[MOB_HEADER_ROW]  || [];
 
-      const prefixIdx = findColIndexInRow(baseHeader, ["Prefixo"]);
-      const depIdx    = findColIndexInRow(baseHeader, ["Dependência", "Dependencia", "Agência"]);
-      const cartIdx   = findColIndexInRow(baseHeader, ["Carteira"]);
-      const tipoIdx   = findColIndexInRow(baseHeader, ["Tipo da Carteira", "Tipo Carteira"]);
-
-      console.log("[DEBUG] idx Prefixo/Agência/Carteira/Tipo:", prefixIdx, depIdx, cartIdx, tipoIdx);
+      const prefixIdx = findColIndex(baseHeader, ["Prefixo"]);
+      const depIdx    = findColIndex(baseHeader, ["Dependência", "Dependencia"]);
+      const cartIdx   = findColIndex(baseHeader, ["Carteira"]);
+      const tipoIdx   = findColIndex(baseHeader, ["Tipo da Carteira", "Tipo Carteira"]);
 
       if ([prefixIdx, depIdx, cartIdx, tipoIdx].some(i => i === -1)) {
         statusEl.textContent = "Não encontrei Prefixo / Agência / Carteira / Tipo Carteira na linha 1.";
@@ -331,13 +410,11 @@
 
       let any = false;
 
-      mobilizadoresConfig.forEach(conf => {
-        const idx = detectColumnsForMobilizador(mobHeader, conf);
-        console.log(`[DEBUG] ${conf.title} ->`, idx);
-        const ranking = buildRankingForMobilizador(rows, conf, idx, {
+      mobilizadores.forEach(m => {
+        const ranking = buildRankingForMobilizador(rows, m, {
           prefixIdx, depIdx, cartIdx, tipoIdx
         });
-        const card = createRankingCard(conf, ranking);
+        const card = createRankingCard(m, ranking);
         cardsContainer.appendChild(card);
         if (ranking.length) any = true;
       });
@@ -347,63 +424,47 @@
         : "Nenhuma linha elegível encontrada nos blocos dos Mobilizadores.";
     }
 
-    function findColIndexInRow(row, labels) {
+    function findColIndex(row, labels) {
       const targets = labels.map(l => normalize(l));
       for (let c = 0; c < row.length; c++) {
-        const val = normalize(row[c] || "");
-        if (targets.includes(val)) return c;
+        if (targets.includes(normalize(row[c]))) {
+          return c;
+        }
       }
       return -1;
     }
 
-    function detectColumnsForMobilizador(mobHeader, conf) {
-      const { startIdx, endIdx, mode } = conf;
-      let necIdx = null, rlzIdx = null, pctIdx = null;
-
-      for (let c = startIdx; c <= endIdx; c++) {
-        const raw = (mobHeader[c] || "").toString().trim();
-        const norm = normalize(raw);
-
-        if (mode === "icred") {
-          if (!pctIdx && (norm.includes("%atg") || norm.includes("pctatg"))) {
-            pctIdx = c;
-          }
-        } else {
-          if (!necIdx && (norm === "necdia"  || norm.includes("necdia")))  necIdx = c;
-          if (!rlzIdx && (norm === "rlzdia" || norm.includes("rlzdia"))) rlzIdx = c;
-          if (!pctIdx && (norm.includes("%atg") || norm.includes("%ating"))) pctIdx = c;
-        }
-      }
-
-      return { necIdx, rlzIdx, pctIdx };
-    }
-
-    function buildRankingForMobilizador(rows, conf, idx, base) {
-      const { mode } = conf;
-      const { necIdx, rlzIdx, pctIdx } = idx;
+    function buildRankingForMobilizador(rows, m, base) {
       const { prefixIdx, depIdx, cartIdx, tipoIdx } = base;
       const ranking = [];
 
-      for (let r = MOB_HEADER_ROW + 1; r < rows.length; r++) {
+      for (let r = DATA_START_ROW; r < rows.length; r++) {
         const row = rows[r] || [];
         const prefixo = row[prefixIdx];
-        if (prefixo == null || prefixo === "") continue;
+
+        if (prefixo === null || prefixo === undefined || prefixo === "") continue;
 
         const dependencia  = row[depIdx];
         const carteira     = row[cartIdx];
         const tipoCarteira = row[tipoIdx];
 
-        let nec = necIdx != null ? toNumber(row[necIdx]) : null;
-        let rlz = rlzIdx != null ? toNumber(row[rlzIdx]) : null;
-        let pct = pctIdx != null ? toNumber(row[pctIdx]) : null;
+        let nec = m.necIdx != null ? toNumber(row[m.necIdx]) : null;
+        let rlz = m.rlzIdx != null ? toNumber(row[m.rlzIdx]) : null;
+        let pct = m.pctIdx != null ? toNumber(row[m.pctIdx]) : null;
 
-        if (mode === "icred") {
+        if (m.mode === "icred") {
+          // Só entra se tiver %Atg preenchido
           if (pct == null || isNaN(pct)) continue;
         } else {
+          // Intradia: só entra se tiver Nec. Dia > 0
           if (nec == null || isNaN(nec) || nec <= 0) continue;
+
+          // Se não tiver %Atg, tenta calcular com Rlz/Nec
           if ((pct == null || isNaN(pct)) && rlz != null && !isNaN(rlz) && nec !== 0) {
             pct = (rlz / nec) * 100;
           }
+
+          // Continua exigindo %Atg válido
           if (pct == null || isNaN(pct)) continue;
         }
 
@@ -422,10 +483,10 @@
       return ranking;
     }
 
-    function createRankingCard(conf, ranking) {
+    function createRankingCard(m, ranking) {
       const card = document.createElement("div");
       card.className = "card";
-      card.id = `card-${conf.key}`;
+      card.id = `card-${m.key}`;
 
       const header = document.createElement("div");
       header.className = "card-header";
@@ -435,15 +496,15 @@
 
       const title = document.createElement("div");
       title.className = "card-title";
-      title.textContent = `Mobilizador ${conf.title}`;
+      title.textContent = `Mobilizador ${m.title}`;
       left.appendChild(title);
 
       const subtitle = document.createElement("div");
       subtitle.className = "card-subtitle";
       subtitle.textContent =
-        conf.mode === "icred"
-          ? "Ranking por %Atg (bloco Y–Z, somente indicadores preenchidos)."
-          : "Ranking por %Atg Intradia (Nec. Dia > 0 no bloco definido).";
+        m.mode === "icred"
+          ? "Ranking por %Atg (Y). Apenas linhas com indicador preenchido."
+          : `Ranking por %Atg Intradia (${m.rangeLabel}). Apenas Nec. Dia > 0.`;
       left.appendChild(subtitle);
 
       const right = document.createElement("div");
@@ -458,13 +519,13 @@
 
       const cols = document.createElement("div");
       cols.className = "badge";
-      cols.textContent = `Colunas ${conf.start}–${conf.end}`;
+      cols.textContent = `Bloco ${m.rangeLabel}`;
       right.appendChild(cols);
 
       const btn = document.createElement("button");
       btn.className = "btn-png";
       btn.innerHTML = '<span class="icon">⬇</span><span>Baixar PNG</span>';
-      btn.onclick = () => downloadCardAsPNG(card, `ranking_${conf.key}.png`);
+      btn.onclick = () => downloadCardAsPNG(card, `ranking_${m.key}.png`);
       right.appendChild(btn);
 
       header.appendChild(left);
@@ -540,52 +601,12 @@
       const note = document.createElement("div");
       note.className = "small-note";
       note.textContent =
-        conf.mode === "icred"
-          ? "Critério: %Atg válido no bloco Y–Z. Ordenado de maior para menor."
-          : "Critério: Nec. Dia > 0 no bloco do Mobilizador; %Atg da planilha ou calculado (Rlz/Nec). Ordenado de maior para menor.";
+        m.mode === "icred"
+          ? "Critério: %Atg em Y. Ordenado de maior para menor."
+          : "Critério: Nec. Dia > 0 no bloco; %Atg da coluna ou Rlz/Nec. Ordenado de maior para menor.";
       card.appendChild(note);
 
       return card;
-    }
-
-    // Utilitários
-
-    function colToIndex(col) {
-      let c = 0;
-      const up = col.toUpperCase();
-      for (let i = 0; i < up.length; i++) {
-        c = c * 26 + (up.charCodeAt(i) - 64);
-      }
-      return c - 1;
-    }
-
-    function normalize(str) {
-      return str
-        .toString()
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9%]/g, "");
-    }
-
-    function toNumber(v) {
-      if (v == null || v === "") return null;
-      const s = v.toString().replace("%","").replace(/\./g,"").replace(",",".");
-      const n = parseFloat(s);
-      return isNaN(n) ? null : n;
-    }
-
-    function formatNumber(n) {
-      const num = Number(n);
-      if (isNaN(num)) return "";
-      return num.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
-    }
-
-    function pctClass(pct) {
-      if (pct == null) return "";
-      if (pct >= 105) return "good";
-      if (pct >= 90)  return "medium";
-      return "bad";
     }
 
     async function downloadCardAsPNG(cardEl, filename) {
@@ -613,7 +634,7 @@
         link.href = canvas.toDataURL("image/png");
         link.click();
       } catch (e) {
-        console.error("[ERRO] PNG:", e);
+        console.error(e);
         alert("Erro ao gerar PNG deste painel.");
       } finally {
         document.body.removeChild(clone);
