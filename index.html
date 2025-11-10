@@ -59,7 +59,7 @@
     .subtitle {
       font-size: 12px;
       color: var(--bb-muted);
-      max-width: 720px;
+      max-width: 780px;
     }
 
     .upload-area {
@@ -82,7 +82,7 @@
 
     input[type="file"] {
       font-size: 11px;
-      max-width: 260px;
+      max-width: 280px;
     }
 
     .status {
@@ -200,7 +200,6 @@
 
     tbody tr:nth-child(odd) { background: #fafbff; }
     tbody tr:nth-child(even) { background: #ffffff; }
-
     tbody tr:last-child td { border-bottom: none; }
 
     .pos {
@@ -219,9 +218,9 @@
       text-align: right;
     }
 
-    .pct.good { color: #16a34a; }
-    .pct.medium { color: #f59e0b; }
-    .pct.bad { color: #dc2626; }
+    .pct.good  { color: #16a34a; }
+    .pct.medium{ color: #f59e0b; }
+    .pct.bad   { color: #dc2626; }
 
     .small-note {
       font-size: 8px;
@@ -241,14 +240,14 @@
     <div class="brand-pill">Ranking Mobilizadores • Banco do Brasil</div>
     <h1>Painéis de Ranking por Mobilizador</h1>
     <div class="subtitle">
-      Cabeçalhos oficiais considerados na <strong>linha 3</strong> da planilha.
-      Cada painel mostra apenas Prefixo / Agência / Carteira / Tipo de Carteira com
-      <strong>Nec. Dia</strong> (ou %Atg no caso do Icred) no bloco daquele Mobilizador, pronto para exportação em PNG.
+      <strong>Linha 1:</strong> Prefixo / Agência / Carteira / Tipo de Carteira. 
+      <strong>Linha 3:</strong> cabeçalhos dos Mobilizadores (Nec. Dia, Rlz Dia, %Atg).
+      Cada painel abaixo usa apenas linhas com indicador válido no bloco daquele Mobilizador e já sai pronto para exportar como PNG.
     </div>
   </div>
 
   <div class="upload-area">
-    <label for="file">Selecione o arquivo <strong>.xlsx</strong> (modelo 6500):</label>
+    <label for="file">Selecione o arquivo <strong>.xlsx</strong> (relatório 6500 estruturado):</label>
     <input type="file" id="file" accept=".xlsx" />
     <div class="status" id="status">Aguardando arquivo...</div>
   </div>
@@ -259,17 +258,16 @@
     const statusEl = document.getElementById("status");
     const cardsContainer = document.getElementById("cards-container");
 
-    // Linha de cabeçalho que importa (0-based): 2 == 3ª linha da planilha
-    const HEADER_ROW = 2;
+    const BASE_HEADER_ROW = 0; // Prefixo / Agência / Carteira / Tipo Carteira
+    const MOB_HEADER_ROW  = 2; // Nec. Dia / Rlz Dia / %Atg dentro dos blocos
 
-    // Blocos de colunas fixos
     const mobilizadoresConfig = [
-      { key: "desembolso_pf",        title: "Desembolso PF",             start: "G",  end: "K",  mode: "intradia" },
-      { key: "desembolso_giro",      title: "Desembolso Giro",           start: "M",  end: "Q",  mode: "intradia" },
-      { key: "desembolso_agro",      title: "Desembolso Agro",           start: "S",  end: "W",  mode: "intradia" },
-      { key: "icred_1590",           title: "Icred 15/90",               start: "Y",  end: "Z",  mode: "icred"    },
-      { key: "regulariza_agro",      title: "Regulariza Dívidas Agro",   start: "AB", end: "AF", mode: "intradia" },
-      { key: "portfolio_priorizado", title: "Portfólio Priorizado",      start: "AH", end: "AL", mode: "intradia" }
+      { key: "desembolso_pf",        title: "Desembolso PF",           start: "G",  end: "K",  mode: "intradia" },
+      { key: "desembolso_giro",      title: "Desembolso Giro",         start: "M",  end: "Q",  mode: "intradia" },
+      { key: "desembolso_agro",      title: "Desembolso Agro",         start: "S",  end: "W",  mode: "intradia" },
+      { key: "icred_1590",           title: "Icred 15/90",             start: "Y",  end: "Z",  mode: "icred"    },
+      { key: "regulariza_agro",      title: "Regulariza Dívidas Agro", start: "AB", end: "AF", mode: "intradia" },
+      { key: "portfolio_priorizado", title: "Portfólio Priorizado",    start: "AH", end: "AL", mode: "intradia" }
     ].map(conf => ({
       ...conf,
       startIdx: colToIndex(conf.start),
@@ -290,11 +288,10 @@
           const sheetName = wb.SheetNames[0];
           const ws = wb.Sheets[sheetName];
           const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
-
           buildRankings(rows);
         } catch (err) {
           console.error(err);
-          statusEl.textContent = "Erro ao ler planilha. Confirme o layout.";
+          statusEl.textContent = "Erro ao ler planilha. Verifique se está no padrão informado.";
         }
       };
       reader.readAsArrayBuffer(file);
@@ -303,27 +300,28 @@
     function buildRankings(rows) {
       cardsContainer.innerHTML = "";
 
-      if (!rows || rows.length <= HEADER_ROW) {
-        statusEl.textContent = "Planilha sem a linha 3 de cabeçalho.";
+      if (!rows || rows.length <= MOB_HEADER_ROW + 1) {
+        statusEl.textContent = "Planilha sem estrutura mínima (linhas 1 e 3).";
         return;
       }
 
-      const header = rows[HEADER_ROW] || [];
+      const baseHeader = rows[BASE_HEADER_ROW] || [];
+      const mobHeader  = rows[MOB_HEADER_ROW]  || [];
 
-      const prefixIdx = findColIndexInRow(header, ["Prefixo"]);
-      const depIdx    = findColIndexInRow(header, ["Dependência", "Dependencia"]);
-      const cartIdx   = findColIndexInRow(header, ["Carteira"]);
-      const tipoIdx   = findColIndexInRow(header, ["Tipo da Carteira", "Tipo Carteira"]);
+      const prefixIdx = findColIndexInRow(baseHeader, ["Prefixo"]);
+      const depIdx    = findColIndexInRow(baseHeader, ["Dependência", "Dependencia", "Agência"]);
+      const cartIdx   = findColIndexInRow(baseHeader, ["Carteira"]);
+      const tipoIdx   = findColIndexInRow(baseHeader, ["Tipo da Carteira", "Tipo Carteira"]);
 
       if ([prefixIdx, depIdx, cartIdx, tipoIdx].some(i => i === -1)) {
-        statusEl.textContent = "Não encontrei Prefixo / Dependência / Carteira / Tipo Carteira na linha 3.";
+        statusEl.textContent = "Não encontrei Prefixo / Agência / Carteira / Tipo Carteira na linha 1.";
         return;
       }
 
       let any = false;
 
       mobilizadoresConfig.forEach(conf => {
-        const idx = detectColumnsForMobilizador(header, conf);
+        const idx = detectColumnsForMobilizador(mobHeader, conf);
         const ranking = buildRankingForMobilizador(rows, conf, idx, {
           prefixIdx, depIdx, cartIdx, tipoIdx
         });
@@ -333,11 +331,10 @@
       });
 
       statusEl.textContent = any
-        ? "Rankings gerados com base na linha 3. Use os botões para baixar cada painel em PNG."
-        : "Nenhum dado elegível encontrado nos blocos dos Mobilizadores.";
+        ? "Rankings gerados com sucesso. Use os botões para baixar cada painel em PNG."
+        : "Nenhuma linha elegível encontrada nos blocos dos Mobilizadores.";
     }
 
-    // Encontra coluna em UMA linha (linha 3)
     function findColIndexInRow(row, labels) {
       const targets = labels.map(l => normalize(l));
       for (let c = 0; c < row.length; c++) {
@@ -347,21 +344,20 @@
       return -1;
     }
 
-    // Detecta Nec. Dia / Rlz Dia / %Atg dentro da faixa do mobilizador usando apenas a linha 3
-    function detectColumnsForMobilizador(header, conf) {
+    function detectColumnsForMobilizador(mobHeader, conf) {
       const { startIdx, endIdx, mode } = conf;
       let necIdx = null, rlzIdx = null, pctIdx = null;
 
       for (let c = startIdx; c <= endIdx; c++) {
-        const text = (header[c] || "").toString().trim();
-        const norm = normalize(text);
+        const raw = (mobHeader[c] || "").toString().trim();
+        const norm = normalize(raw);
 
         if (mode === "icred") {
           if (!pctIdx && (norm.includes("%atg") || norm.includes("pctatg"))) {
             pctIdx = c;
           }
         } else {
-          if (!necIdx && (norm === "necdia" || norm.includes("necdia"))) necIdx = c;
+          if (!necIdx && (norm === "necdia"  || norm.includes("necdia")))  necIdx = c;
           if (!rlzIdx && (norm === "rlzdia" || norm.includes("rlzdia"))) rlzIdx = c;
           if (!pctIdx && (norm.includes("%atg") || norm.includes("%ating"))) pctIdx = c;
         }
@@ -374,9 +370,10 @@
       const { mode } = conf;
       const { necIdx, rlzIdx, pctIdx } = idx;
       const { prefixIdx, depIdx, cartIdx, tipoIdx } = base;
+
       const ranking = [];
 
-      for (let r = HEADER_ROW + 1; r < rows.length; r++) {
+      for (let r = MOB_HEADER_ROW + 1; r < rows.length; r++) {
         const row = rows[r] || [];
         const prefixo = row[prefixIdx];
 
@@ -391,10 +388,13 @@
         let pct = pctIdx != null ? toNumber(row[pctIdx]) : null;
 
         if (mode === "icred") {
-          if (pct == null || isNaN(pct)) continue; // só entra se tiver indicador
+          // Entra só se tiver %Atg válido
+          if (pct == null || isNaN(pct)) continue;
         } else {
-          if (nec == null || isNaN(nec) || nec <= 0) continue; // exige Nec. Dia > 0
+          // Mobilizadores com intradia: exige Nec. Dia > 0
+          if (nec == null || isNaN(nec) || nec <= 0) continue;
 
+          // Se não tiver %Atg mas tiver Nec + Rlz, calcula
           if ((pct == null || isNaN(pct)) && rlz != null && !isNaN(rlz) && nec !== 0) {
             pct = (rlz / nec) * 100;
           }
@@ -437,8 +437,8 @@
       subtitle.className = "card-subtitle";
       subtitle.textContent =
         conf.mode === "icred"
-          ? "Ranking por %Atg (linha 3 como base, somente onde houver indicador)."
-          : "Ranking por %Atg Intradia (Nec. Dia > 0 na faixa definida).";
+          ? "Ranking por %Atg (bloco Y–Z, somente indicadores preenchidos)."
+          : "Ranking por %Atg Intradia (Nec. Dia > 0 no bloco definido).";
       left.appendChild(subtitle);
 
       const right = document.createElement("div");
@@ -470,7 +470,7 @@
         const empty = document.createElement("div");
         empty.className = "empty";
         empty.textContent =
-          "Nenhum Prefixo/Carteira com Nec. Dia (ou %Atg no Icred) para este Mobilizador na linha 3.";
+          "Nenhuma linha com indicador válido para este Mobilizador.";
         card.appendChild(empty);
         return card;
       }
@@ -536,8 +536,8 @@
       note.className = "small-note";
       note.textContent =
         conf.mode === "icred"
-          ? "Critério: %Atg válido no bloco Y–Z, ordenado de maior para menor."
-          : "Critério: Nec. Dia > 0 no bloco definido; %Atg da planilha ou calculado (Rlz/Nec), ordenado de maior para menor.";
+          ? "Critério: %Atg válido no bloco Y–Z. Ordenado de maior para menor."
+          : "Critério: Nec. Dia > 0 no bloco do Mobilizador; %Atg da planilha ou calculado (Rlz/Nec). Ordenado de maior para menor.";
       card.appendChild(note);
 
       return card;
