@@ -18,31 +18,38 @@
     }
     p {
       text-align: center;
+      margin-bottom: 10px;
     }
     input[type="file"] {
       display: block;
-      margin: 20px auto;
+      margin: 15px auto 25px auto;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      background: #fff;
     }
     .grid {
       display: grid;
       grid-template-columns: 1fr;
       gap: 20px;
-      margin-top: 30px;
+      margin-top: 10px;
     }
     .card {
-      background: #fff;
+      background: #ffffff;
       border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 18px 18px 14px 18px;
     }
     .card h2 {
       color: #0033a0;
-      margin-bottom: 5px;
+      margin: 0 0 4px 0;
+      font-size: 18px;
     }
     .card h3 {
       color: #666;
       font-weight: normal;
-      margin-top: 0;
+      margin: 0 0 8px 0;
+      font-size: 13px;
     }
     .badge {
       display: inline-block;
@@ -51,31 +58,36 @@
       padding: 3px 10px;
       border-radius: 20px;
       font-weight: bold;
-      margin-bottom: 10px;
+      font-size: 11px;
+      margin-bottom: 6px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      margin-top: 6px;
+      table-layout: fixed;
     }
     th, td {
-      border: 1px solid #ddd;
-      padding: 6px;
-      font-size: 13px;
+      border: 1px solid #e0e3eb;
+      padding: 5px 3px;
+      font-size: 11px;
       text-align: center;
+      word-wrap: break-word;
     }
     th {
       background: #0033a0;
-      color: #fff;
+      color: #ffffff;
+      font-weight: 600;
     }
     button {
-      margin-top: 10px;
+      margin-top: 8px;
       background: #0033a0;
-      color: #fff;
+      color: #ffffff;
       border: none;
-      padding: 8px 16px;
+      padding: 7px 14px;
       border-radius: 5px;
       cursor: pointer;
+      font-size: 11px;
     }
     button:hover {
       background: #00257a;
@@ -84,101 +96,204 @@
 </head>
 <body>
   <h1>Rankings dos Mobilizadores - Relatório 6500</h1>
-  <p>Selecione o arquivo <strong>relatorio-6500.xlsx</strong> para gerar os rankings dos mobilizadores.</p>
+  <p>Selecione o arquivo <strong>relatorio-6500.xlsx</strong> para gerar os 6 rankings (Intradia e Icred 15/90).</p>
   <input type="file" id="fileInput" accept=".xlsx,.xls" />
   <div class="grid" id="cardsContainer"></div>
 
   <script>
-    const MOBILIZADORES = [
-      { name: "Mobilizador Desembolso PF", cols: { nec: "I", rlz: "J", atg: "K" }, tipo: "Intradia" },
-      { name: "Mobilizador Desembolso Giro", cols: { nec: "O", rlz: "P", atg: "Q" }, tipo: "Intradia" },
-      { name: "Mobilizador Desembolso Agro", cols: { nec: "U", rlz: "V", atg: "W" }, tipo: "Intradia" },
-      { name: "Mobilizador Icred 15/90", cols: { atg: "Z" }, tipo: "Icred" },
-      { name: "Mobilizador Regulariza Dívidas Agro", cols: { nec: "AD", rlz: "AE", atg: "AF" }, tipo: "Intradia" },
-      { name: "Mobilizador Portfólio Priorizado", cols: { nec: "AJ", rlz: "AK", atg: "AL" }, tipo: "Intradia" },
-    ];
-
     document.getElementById('fileInput').addEventListener('change', handleFile, false);
 
     function handleFile(e) {
       const file = e.target.files[0];
+      if (!file) return;
       const reader = new FileReader();
-      reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
+      reader.onload = function (ev) {
+        const data = new Uint8Array(ev.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const merged = sheet['!merges'] || [];
-        const range = XLSX.utils.decode_range(sheet['!ref']);
-        const grid = Array.from({ length: range.e.r + 1 }, () => Array(range.e.c + 1).fill(null));
-
-        for (let r = range.s.r; r <= range.e.r; r++) {
-          for (let c = range.s.c; c <= range.e.c; c++) {
-            const cell = sheet[XLSX.utils.encode_cell({ r, c })];
-            if (cell) grid[r][c] = cell.v;
-          }
-        }
-
-        for (const m of merged) {
-          const val = grid[m.s.r][m.s.c];
-          for (let r = m.s.r; r <= m.e.r; r++) {
-            for (let c = m.s.c; c <= m.e.c; c++) {
-              grid[r][c] = val;
-            }
-          }
-        }
-
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const grid = buildExpandedGrid(sheet);
         gerarRankings(grid);
       };
       reader.readAsArrayBuffer(file);
     }
 
+    // Expande planilha considerando !merges
+    function buildExpandedGrid(sheet) {
+      const ref = sheet['!ref'];
+      const range = XLSX.utils.decode_range(ref);
+      const rows = range.e.r + 1;
+      const cols = range.e.c + 1;
+      const grid = Array.from({ length: rows }, () => Array(cols).fill(null));
+
+      // Valores base
+      for (let r = range.s.r; r <= range.e.r; r++) {
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+          if (cell && cell.v !== undefined) {
+            grid[r][c] = cell.v;
+          }
+        }
+      }
+
+      // Expansão de merges
+      const merges = sheet['!merges'] || [];
+      merges.forEach(m => {
+        const baseVal = grid[m.s.r][m.s.c];
+        for (let r = m.s.r; r <= m.e.r; r++) {
+          for (let c = m.s.c; c <= m.e.c; c++) {
+            grid[r][c] = baseVal;
+          }
+        }
+      });
+
+      return grid;
+    }
+
     function gerarRankings(grid) {
       const container = document.getElementById('cardsContainer');
-      container.innerHTML = "";
+      container.innerHTML = '';
 
-      MOBILIZADORES.forEach((mob, idx) => {
+      const col = c => XLSX.utils.decode_col(c);
+
+      // Descobrir coluna de %Atg do Icred 15/90 dentro de Y-Z após merges
+      const icredStart = col('Y');
+      const icredEnd = col('Z');
+      let icredAtgCol = null;
+      for (let c = icredStart; c <= icredEnd; c++) {
+        const v2 = normalizeHeader(grid[1] && grid[1][c]);
+        const v3 = normalizeHeader(grid[2] && grid[2][c]);
+        if ((v2 && v2.includes('%atg')) || (v3 && v3.includes('%atg'))) {
+          icredAtgCol = c;
+          break;
+        }
+      }
+      if (icredAtgCol === null) {
+        // fallback contratual: usar Z se não localizar
+        icredAtgCol = col('Z');
+      }
+
+      const MOBILIZADORES = [
+        {
+          id: 0,
+          name: "Mobilizador Desembolso PF",
+          tipo: "Intradia",
+          necCol: col('I'),
+          rlzCol: col('J'),
+          atgCol: col('K')
+        },
+        {
+          id: 1,
+          name: "Mobilizador Desembolso Giro",
+          tipo: "Intradia",
+          necCol: col('O'),
+          rlzCol: col('P'),
+          atgCol: col('Q')
+        },
+        {
+          id: 2,
+          name: "Mobilizador Desembolso Agro",
+          tipo: "Intradia",
+          necCol: col('U'),
+          rlzCol: col('V'),
+          atgCol: col('W')
+        },
+        {
+          id: 3,
+          name: "Mobilizador Icred 15/90",
+          tipo: "Icred",
+          necCol: null,
+          rlzCol: null,
+          atgCol: icredAtgCol
+        },
+        {
+          id: 4,
+          name: "Mobilizador Regulariza Dívidas Agro",
+          tipo: "Intradia",
+          necCol: col('AD'),
+          rlzCol: col('AE'),
+          atgCol: col('AF')
+        },
+        {
+          id: 5,
+          name: "Mobilizador Portfólio Priorizado",
+          tipo: "Intradia",
+          necCol: col('AJ'),
+          rlzCol: col('AK'),
+          atgCol: col('AL')
+        }
+      ];
+
+      MOBILIZADORES.forEach(mob => {
         const ranking = [];
-        for (let i = 3; i < grid.length; i++) {
-          const row = grid[i];
-          const prefixo = row[0];
-          if (!prefixo) continue;
 
-          const agencia = row[1], carteira = row[3], tipo = row[4];
+        for (let r = 3; r < grid.length; r++) { // dados a partir da linha 4 (index 3)
+          const row = grid[r];
+          if (!row) continue;
 
-          let nec = rlz = atg = null;
+          const prefixo = cleanText(row[0]);
+          if (!prefixo) continue; // critério 1: Prefixo não vazio
+
+          const agencia = cleanText(row[1]);
+          const carteira = cleanText(row[3]);
+          const tipoCarteira = cleanText(row[4]);
+
+          let nec = null, rlz = null, atg = null;
 
           if (mob.tipo === "Intradia") {
-            nec = parseNumber(row[colIndex(mob.cols.nec)]);
-            rlz = parseNumber(row[colIndex(mob.cols.rlz)]);
-            atg = parseNumber(row[colIndex(mob.cols.atg)]);
+            nec = parseNumber(row[mob.necCol]);
+            if (isNaN(nec)) continue; // critério 2: Nec. Dia numérico para aquele mobilizador
 
-            if (isNaN(nec)) continue;
+            rlz = parseNumber(row[mob.rlzCol]);
+            atg = parseNumber(row[mob.atgCol]);
+
             if (isNaN(atg) && !isNaN(rlz) && nec !== 0) {
               atg = (rlz / nec) * 100;
             }
           } else if (mob.tipo === "Icred") {
-            atg = parseNumber(row[colIndex(mob.cols.atg)]);
-            if (isNaN(atg)) continue;
+            atg = parseNumber(row[mob.atgCol]);
           }
 
-          if (isNaN(atg)) continue;
+          if (isNaN(atg)) continue; // critério 4: %Atg numérico
 
-          ranking.push({ prefixo, agencia, carteira, tipo, nec, rlz, atg });
+          // Cada mobilizador avalia a linha de forma independente:
+          ranking.push({
+            prefixo,
+            agencia,
+            carteira,
+            tipo: tipoCarteira,
+            nec: !isNaN(nec) ? nec : null,
+            rlz: !isNaN(rlz) ? rlz : null,
+            atg
+          });
         }
 
         ranking.sort((a, b) => b.atg - a.atg);
-        renderCard(mob.name, mob.tipo, ranking, idx);
+        renderCard(mob, ranking, container);
       });
     }
 
-    function renderCard(title, tipo, data, id) {
-      const container = document.getElementById('cardsContainer');
+    function renderCard(mob, data, container) {
       const card = document.createElement('div');
       card.className = 'card';
-      card.id = `card-${id}`;
+      card.id = `card-${mob.id}`;
+
+      const tbodyHTML = data.map((item, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHTML(item.prefixo)}</td>
+          <td>${escapeHTML(item.agencia || '')}</td>
+          <td>${escapeHTML(item.carteira || '')}</td>
+          <td>${escapeHTML(item.tipo || '')}</td>
+          <td>${item.nec !== null && !isNaN(item.nec) ? formatNumber(item.nec) : ''}</td>
+          <td>${item.rlz !== null && !isNaN(item.rlz) ? formatNumber(item.rlz) : ''}</td>
+          <td>${formatNumber(item.atg, 2)}%</td>
+        </tr>
+      `).join('');
+
       card.innerHTML = `
-        <h2>${title}</h2>
-        <h3>Critério: ${tipo}</h3>
+        <h2>${mob.name}</h2>
+        <h3>Critério: ${mob.tipo === 'Intradia' ? 'Intradia (%Atg sobre Nec. Dia do dia)' : 'Icred 15/90 (%Atg do bloco Y–Z)'}</h3>
         <div class="badge">${data.length} no ranking</div>
         <table>
           <thead>
@@ -194,44 +309,79 @@
             </tr>
           </thead>
           <tbody>
-            ${data.map((item, i) => `
-              <tr>
-                <td>${i + 1}</td>
-                <td>${item.prefixo}</td>
-                <td>${item.agencia}</td>
-                <td>${item.carteira}</td>
-                <td>${item.tipo}</td>
-                <td>${item.nec ?? ''}</td>
-                <td>${item.rlz ?? ''}</td>
-                <td>${item.atg.toFixed(2)}%</td>
-              </tr>`).join('')}
+            ${tbodyHTML}
           </tbody>
         </table>
-        <button onclick="baixarPNG(${id})">Baixar PNG</button>
+        <button onclick="baixarPNG(${mob.id})">Baixar PNG</button>
       `;
+
       container.appendChild(card);
     }
 
     function baixarPNG(id) {
       const card = document.getElementById(`card-${id}`);
-      html2canvas(card).then(canvas => {
+      if (!card) return;
+      html2canvas(card, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
         const link = document.createElement('a');
         link.download = `ranking-${id + 1}.png`;
-        link.href = canvas.toDataURL();
+        link.href = canvas.toDataURL('image/png');
         link.click();
       });
     }
 
-    function colIndex(col) {
-      return XLSX.utils.decode_col(col);
+    function parseNumber(val) {
+      if (val === null || val === undefined) return NaN;
+      if (typeof val === 'number') {
+        return isFinite(val) ? val : NaN;
+      }
+      if (typeof val === 'string') {
+        let s = val.trim();
+        if (!s) return NaN;
+        s = s.replace(/%/g, '').trim();
+        // se tem . e , assume . milhar e , decimal
+        if (s.indexOf('.') !== -1 && s.indexOf(',') !== -1) {
+          s = s.replace(/\./g, '').replace(',', '.');
+        } else if (s.indexOf(',') !== -1 && s.indexOf('.') === -1) {
+          s = s.replace(',', '.');
+        } else {
+          // só ponto: remove separadores de milhar supostos
+          const partes = s.split('.');
+          if (partes.length > 2) {
+            s = partes.slice(0, -1).join('') + '.' + partes[partes.length - 1];
+          }
+        }
+        const n = Number(s.replace(/\s/g, ''));
+        return isNaN(n) ? NaN : n;
+      }
+      return NaN;
     }
 
-    function parseNumber(val) {
-      if (typeof val === 'string') {
-        val = val.replace('%', '').replace(',', '.');
-      }
-      const num = parseFloat(val);
-      return isNaN(num) ? NaN : num;
+    function normalizeHeader(v) {
+      if (v === null || v === undefined) return '';
+      return String(v).toLowerCase().replace(/\s+/g, '').replace(/[%º]/g, 'atg').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function cleanText(v) {
+      if (v === null || v === undefined) return '';
+      return String(v).trim();
+    }
+
+    function escapeHTML(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function formatNumber(num, decimals) {
+      if (num === null || num === undefined || isNaN(num)) return '';
+      const d = typeof decimals === 'number' ? decimals : (Number.isInteger(num) ? 0 : 2);
+      return num.toLocaleString('pt-BR', {
+        minimumFractionDigits: d,
+        maximumFractionDigits: d
+      });
     }
   </script>
 </body>
