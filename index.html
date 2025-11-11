@@ -65,6 +65,10 @@
         #status-message {
             margin-top: 15px;
             font-weight: bold;
+            color: #d9534f; /* Vermelho para erros */
+        }
+        #status-message.success {
+            color: #5cb85c; /* Verde para sucesso */
         }
         .buttons {
             text-align: center;
@@ -142,33 +146,41 @@
         import io
         import re
         import numpy as np
-        from js import document
+        from js import document, XLSX
 
         # Variável global para armazenar o DataFrame processado
         df_final = None
 
         # --- Função para processar os dados vindos do JavaScript ---
-        def process_excel_data(js_data):
+        def process_excel_data(js_data_list):
             global df_final
+            pyscript.write("status-message", "Processando arquivo...")
             try:
-                # Converte a lista de listas do JS de volta para uma string no formato original
-                string_from_js = "\n".join(["|".join(map(str, line)) for line in js_data])
+                # Encontra a linha onde os dados começam (a primeira coluna é um número)
+                data_start_index = -1
+                for i, row in enumerate(js_data_list):
+                    if row and isinstance(row[0], (int, float)) and not pd.isna(row[0]):
+                        data_start_index = i
+                        break
                 
-                lines = string_from_js.strip().split('\n')
-                # Encontra as linhas que começam com número (dados)
-                data_lines_str = [line for line in lines if re.match(r'^\d+\s*\|', line)]
-                
-                if not data_lines_str:
-                    pyscript.write("status-message", "Erro: Formato de planilha inválido. Não foram encontradas linhas de dados.")
-                    return
+                if data_start_index == -1:
+                    raise ValueError("Não foi possível encontrar o início dos dados na planilha. A primeira coluna deve conter números.")
 
-                # Usa a mesma lógica de parsing do script original
-                df_temp = pd.read_csv(io.StringIO('\n'.join(data_lines_str)), sep='|', header=None)
-                df_temp = df_temp.iloc[:, 1:-1] # Remove colunas vazias extras
-                df_temp.columns = ['Prefixo', 'Dependência', 'UF', 'Carteira', 'Tipo da Carteira'] + [f'Col_{i}' for i in range(len(df_temp.columns) - 5)]
-                df_temp.replace('*', np.nan, inplace=True)
+                # Separa os dados e aplica as colunas conhecidas
+                data_rows = js_data_list[data_start_index:]
                 
-                # Reconstrói o MultiIndex
+                # Define as colunas planas (sem MultiIndex) para criar o DataFrame inicial
+                flat_columns = ['Prefixo', 'Dependência', 'UF', 'Carteira', 'Tipo da Carteira'] + \
+                               [f'Col_{i}' for i in range(len(data_rows[0]) - 5)]
+
+                # Cria o DataFrame de forma direta
+                df_temp = pd.DataFrame(data_rows, columns=flat_columns)
+                
+                # Limpeza inicial
+                df_temp.replace('*', np.nan, inplace=True)
+                df_temp.dropna(how='all', inplace=True) # Remove linhas totalmente vazias
+
+                # Define a estrutura de colunas com MultiIndex
                 col_info = [
                     ('Info', 'Prefixo'), ('Info', 'Dependência'), ('Info', 'UF'), ('Info', 'Carteira'), ('Info', 'Tipo da Carteira'),
                     ('Mobilizador Desembolso PF', 'Conexão (105%)', '% Atg'), ('Mobilizador Desembolso PF', 'Conexão (105%)', 'Subord. na Veloc. do Mês'),
@@ -183,11 +195,17 @@
                     ('Mobilizador Portfólio Priorizado', 'Conexão (105%)', '% Atg'), ('Mobilizador Portfólio Priorizado', 'Conexão (105%)', 'Subord. na Veloc. do Mês'),
                     ('Mobilizador Portfólio Priorizado', 'Intradia', 'Nec. Dia'), ('Mobilizador Portfólio Priorizado', 'Intradia', 'Rlz Dia'), ('Mobilizador Portfólio Priorizado', 'Intradia', '% Ating')
                 ]
+                
+                # Garante que o número de colunas corresponde
+                if len(df_temp.columns) != len(col_info):
+                     raise ValueError(f"O número de colunas no arquivo ({len(df_temp.columns)}) não corresponde ao esperado ({len(col_info)}).")
+
                 df_final = df_temp.copy()
                 df_final.columns = pd.MultiIndex.from_tuples(col_info)
 
                 # Atualiza a UI
-                pyscript.write("status-message", "Arquivo carregado e processado com sucesso!")
+                pyscript.write("status-message", "Arquivo carregado e processado com sucesso!", append=False)
+                document.getElementById('status-message').classList.add("success")
                 document.getElementById('btn-pf').disabled = False
                 document.getElementById('btn-giro').disabled = False
                 document.getElementById('btn-agro').disabled = False
@@ -195,31 +213,39 @@
                 document.getElementById('btn-port').disabled = False
 
             except Exception as e:
-                pyscript.write("status-message", f"Ocorreu um erro ao processar o arquivo: {e}")
+                pyscript.write("status-message", f"Erro ao processar o arquivo: {e}", append=False)
+                document.getElementById('status-message').classList.remove("success")
                 df_final = None
 
         # --- Função que lida com o upload do arquivo (ponte JS-Python) ---
         def handle_file_upload(event):
             file_list = event.target.files
             if not file_list or len(file_list) == 0:
-                pyscript.write("status-message", "Nenhum arquivo selecionado.")
+                pyscript.write("status-message", "Nenhum arquivo selecionado.", append=False)
                 return
             
             file = file_list[0]
             if not file.name.endswith(('.xlsx', '.xls')):
-                pyscript.write("status-message", "Por favor, selecione um arquivo Excel válido (.xlsx ou .xls).")
+                pyscript.write("status-message", "Por favor, selecione um arquivo Excel válido (.xlsx ou .xls).", append=False)
                 return
 
-            # Usa a biblioteca JS 'xlsx' para ler o arquivo
-            from js import XLSX
-            file_reader = XLSX
-            data = file_reader.read(file.arrayBuffer())
-            first_sheet = data.Sheets[data.SheetNames[0]]
-            # Converte a planilha para uma lista de listas (array de arrays)
-            json_data = file_reader.utils.sheet_to_json(first_sheet, header: 1)
-            
-            # Chama a função Python para processar os dados
-            process_excel_data(json_data.to_py())
+            try:
+                # Usa a biblioteca JS 'xlsx' para ler o arquivo
+                data = XLSX.read(file.arrayBuffer())
+                first_sheet_name = data.SheetNames[0]
+                first_sheet = data.Sheets[first_sheet_name]
+                
+                # Converte a planilha para uma lista de listas (array de arrays)
+                # O {header: 1} é crucial para obter os dados brutos
+                json_data = XLSX.utils.sheet_to_json(first_sheet, {header: 1})
+                
+                # Chama a função Python para processar os dados
+                process_excel_data(json_data.to_py())
+
+            except Exception as e:
+                pyscript.write("status-message", f"Erro ao ler o arquivo: {e}", append=False)
+                df_final = None
+
 
         # --- Função de Geração de Ranking (mesma da versão anterior) ---
         def generate_ranking(mobilizador_name):
