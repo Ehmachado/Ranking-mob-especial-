@@ -1,289 +1,760 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Rankings de Mobilizadores - Dinâmico</title>
-    
-    <!-- Importa as bibliotecas do PyScript -->
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
-
-    <!-- Importa a biblioteca XLSX para ler arquivos Excel no navegador -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-    <!-- Estilos Modernos com Cores do Banco do Brasil -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema BB Mobilizadores - Análise Excel</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
+        /* Cores do Banco do Brasil */
+        :root {
+            --bb-blue: #1e3a8a;
+            --bb-light-blue: #3b82f6;
+            --bb-yellow: #fbbf24;
+            --bb-green: #10b981;
+            --bb-red: #ef4444;
+            --bb-gray: #f3f4f6;
+            --bb-dark: #1f2937;
+        }
+
+        * {
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .container {
-            max-width: 1200px;
-            margin: auto;
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bb-blue) 0%, var(--bb-light-blue) 100%);
+            min-height: 100vh;
+            color: var(--bb-dark);
         }
-        h1 {
-            color: #0066B3; /* Azul BB */
+
+        .header {
+            background: var(--bb-blue);
+            color: white;
+            padding: 1.5rem 0;
             text-align: center;
-            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
             font-weight: 700;
         }
-        .upload-area {
-            border: 2px dashed #ccc;
-            border-radius: 10px;
-            padding: 40px;
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .upload-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 3px dashed transparent;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section.dragover {
+            border-color: var(--bb-blue);
+            background-color: #f8fafc;
+        }
+
+        .upload-zone {
             text-align: center;
-            margin-bottom: 30px;
-            background-color: #fafafa;
-            transition: border-color 0.3s;
+            padding: 3rem 2rem;
         }
-        .upload-area:hover {
-            border-color: #0066B3;
+
+        .upload-icon {
+            font-size: 4rem;
+            color: var(--bb-blue);
+            margin-bottom: 1rem;
         }
-        #file-input {
+
+        .upload-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--bb-dark);
+        }
+
+        .upload-subtitle {
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-upload {
+            background: var(--bb-blue);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-upload:hover {
+            background: var(--bb-light-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3);
+        }
+
+        .file-input {
             display: none;
         }
-        .upload-label {
-            display: inline-block;
-            padding: 10px 25px;
-            background-color: #0066B3;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-        .upload-label:hover {
-            background-color: #00529a;
-        }
-        #status-message {
-            margin-top: 15px;
-            font-weight: bold;
-            color: #d9534f; /* Vermelho para erros */
-        }
-        #status-message.success {
-            color: #5cb85c; /* Verde para sucesso */
-        }
-        .buttons {
+
+        .loading {
+            display: none;
             text-align: center;
-            margin-bottom: 30px;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--bb-blue);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .mobilizer-group {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+
+        .mobilizer-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--bb-blue);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--bb-blue);
+        }
+
+        .ranking-list {
+            list-style: none;
+        }
+
+        .ranking-item {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }
-        button {
-            background-color: #FFED00; /* Amarelo BB */
-            color: #0066B3; /* Azul BB */
-            border: none;
-            padding: 12px 25px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 8px;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid var(--bb-blue);
             transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-        button:hover:not(:disabled) {
-            background-color: #e5c800;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+
+        .ranking-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        button:disabled {
-            background-color: #ccc;
-            color: #666;
-            cursor: not-allowed;
-            box-shadow: none;
+
+        .ranking-item.top-1 { border-left-color: #ffd700; }
+        .ranking-item.top-2 { border-left-color: #c0c0c0; }
+        .ranking-item.top-3 { border-left-color: #cd7f32; }
+
+        .rank-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--bb-blue);
+            margin-right: 1rem;
         }
-        #plot-container {
+
+        .mobilizer-name {
+            flex: 1;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .percentage {
+            font-size: 1.2rem;
+            font-weight: 700;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            background: var(--bb-gray);
+        }
+
+        .percentage.excellent { background: var(--bb-green); color: white; }
+        .percentage.good { background: var(--bb-yellow); color: var(--bb-dark); }
+        .percentage.poor { background: var(--bb-red); color: white; }
+
+        .download-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: var(--bb-gray);
+            border-radius: 8px;
             text-align: center;
-            margin-top: 20px;
-            min-height: 500px;
+        }
+
+        .btn-download {
+            background: var(--bb-green);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-download:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .error-message {
+            background: var(--bb-red);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--bb-blue);
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                margin: 1rem auto;
+                padding: 0 0.5rem;
+            }
+            
+            .upload-section {
+                padding: 1.5rem;
+            }
+            
+            .ranking-item {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
-
 <body>
-
-    <div class="container">
-        <h1>Análise de Mobilizadores - Upload de Planilha</h1>
-        
-        <div class="upload-area">
-            <label for="file-input" class="upload-label">Escolher Arquivo Excel (.xlsx)</label>
-            <input type="file" id="file-input" accept=".xlsx, .xls" py-on-change="handle_file_upload">
-            <p id="status-message">Por favor, selecione a planilha para começar.</p>
-        </div>
-
-        <div class="buttons">
-            <button id="btn-pf" py-click="generate_ranking('Mobilizador Desembolso PF')" disabled>Desembolso PF</button>
-            <button id="btn-giro" py-click="generate_ranking('Mobilizador Desembolso Giro')" disabled>Desembolso Giro</button>
-            <button id="btn-agro" py-click="generate_ranking('Mobilizador Desembolso Agro')" disabled>Desembolso Agro</button>
-            <button id="btn-reg" py-click="generate_ranking('Mobilizador Regulariza Dívidas Agro')" disabled>Regulariza Dívidas Agro</button>
-            <button id="btn-port" py-click="generate_ranking('Mobilizador Portfólio Priorizado')" disabled>Portfólio Priorizado</button>
-        </div>
-        
-        <div id="plot-container">
-            <p>O ranking será exibido aqui após o carregamento do arquivo.</p>
-        </div>
+    <div class="header">
+        <h1>🏦 Sistema BB Mobilizadores</h1>
+        <p>Análise de Rankings por % de Atingimento</p>
     </div>
 
-    <!-- Configuração do PyScript -->
-    <py-config>
-        packages = ["pandas", "matplotlib", "seaborn"]
-    </py-config>
+    <div class="container">
+        <!-- Upload Section -->
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📊</div>
+                <h2 class="upload-title">Enviar Arquivo Excel</h2>
+                <p class="upload-subtitle">Arraste o arquivo aqui ou clique para selecionar</p>
+                <button class="btn-upload" onclick="document.getElementById('fileInput').click()">
+                    Selecionar Arquivo
+                </button>
+                <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+                <p style="margin-top: 1rem; color: #6b7280; font-size: 0.9rem;">
+                    Formatos aceitos: .xlsx, .xls (máx. 50MB)
+                </p>
+            </div>
+        </div>
 
-    <!-- Lógica em Python -->
-    <py-script>
-        import pandas as pd
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        import io
-        import re
-        import numpy as np
-        from js import document, XLSX
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <h3>Processando arquivo...</h3>
+            <p>Analisando dados dos mobilizadores...</p>
+        </div>
 
-        # Variável global para armazenar o DataFrame processado
-        df_final = None
+        <!-- Results -->
+        <div class="results" id="results">
+            <h2 style="text-align: center; margin-bottom: 2rem; color: var(--bb-blue);">
+                📈 Rankings por Grupo de Mobilizador
+            </h2>
+            
+            <div class="stats" id="stats"></div>
+            <div id="rankingContent"></div>
+            
+            <div class="download-section">
+                <h3 style="margin-bottom: 1rem; color: var(--bb-blue);">
+                    💾 Baixar Resultados
+                </h3>
+                <button class="btn-download" onclick="downloadResults()">
+                    📊 Baixar Rankings (JSON)
+                </button>
+                <button class="btn-download" onclick="downloadImage()">
+                    🖼️ Baixar Imagem (PNG)
+                </button>
+            </div>
+        </div>
 
-        # --- Função para processar os dados vindos do JavaScript ---
-        def process_excel_data(js_data_list):
-            global df_final
-            pyscript.write("status-message", "Processando arquivo...")
-            try:
-                # Encontra a linha onde os dados começam (a primeira coluna é um número)
-                data_start_index = -1
-                for i, row in enumerate(js_data_list):
-                    if row and isinstance(row[0], (int, float)) and not pd.isna(row[0]):
-                        data_start_index = i
-                        break
-                
-                if data_start_index == -1:
-                    raise ValueError("Não foi possível encontrar o início dos dados na planilha. A primeira coluna deve conter números.")
+        <!-- Error Message -->
+        <div class="error-message" id="errorMessage"></div>
+    </div>
 
-                # Separa os dados e aplica as colunas conhecidas
-                data_rows = js_data_list[data_start_index:]
-                
-                # Define as colunas planas (sem MultiIndex) para criar o DataFrame inicial
-                flat_columns = ['Prefixo', 'Dependência', 'UF', 'Carteira', 'Tipo da Carteira'] + \
-                               [f'Col_{i}' for i in range(len(data_rows[0]) - 5)]
-
-                # Cria o DataFrame de forma direta
-                df_temp = pd.DataFrame(data_rows, columns=flat_columns)
-                
-                # Limpeza inicial
-                df_temp.replace('*', np.nan, inplace=True)
-                df_temp.dropna(how='all', inplace=True) # Remove linhas totalmente vazias
-
-                # Define a estrutura de colunas com MultiIndex
-                col_info = [
-                    ('Info', 'Prefixo'), ('Info', 'Dependência'), ('Info', 'UF'), ('Info', 'Carteira'), ('Info', 'Tipo da Carteira'),
-                    ('Mobilizador Desembolso PF', 'Conexão (105%)', '% Atg'), ('Mobilizador Desembolso PF', 'Conexão (105%)', 'Subord. na Veloc. do Mês'),
-                    ('Mobilizador Desembolso PF', 'Intradia', 'Nec. Dia'), ('Mobilizador Desembolso PF', 'Intradia', 'Rlz Dia'), ('Mobilizador Desembolso PF', 'Intradia', '% Ating'),
-                    ('Mobilizador Desembolso Giro', 'Conexão (105%)', '% Atg'), ('Mobilizador Desembolso Giro', 'Conexão (105%)', 'Subord. na Veloc. do Mês'),
-                    ('Mobilizador Desembolso Giro', 'Intradia', 'Nec. Dia'), ('Mobilizador Desembolso Giro', 'Intradia', 'Rlz Dia'), ('Mobilizador Desembolso Giro', 'Intradia', '% Ating'),
-                    ('Mobilizador Desembolso Agro', 'Conexão (105%)', '% Atg'), ('Mobilizador Desembolso Agro', 'Conexão (105%)', 'Subord. na Veloc. do Mês'),
-                    ('Mobilizador Desembolso Agro', 'Intradia', 'Nec. Dia'), ('Mobilizador Desembolso Agro', 'Intradia', 'Rlz Dia'), ('Mobilizador Desembolso Agro', 'Intradia', '% Ating'),
-                    ('Mobilizador Icred 15/90', 'Conexão (105%)', '% Atg'), ('Mobilizador Icred 15/90', 'Conexão (105%)', 'Subord. na Veloc. do Mês'),
-                    ('Mobilizador Regulariza Dívidas Agro', 'Conexão (105%)', '% Atg'), ('Mobilizador Regulariza Dívidas Agro', 'Conexão (105%)', 'Subord. na Veloc. do Mês'),
-                    ('Mobilizador Regulariza Dívidas Agro', 'Intradia', 'Nec. Dia'), ('Mobilizador Regulariza Dívidas Agro', 'Intradia', 'Rlz Dia'), ('Mobilizador Regulariza Dívidas Agro', 'Intradia', '% Ating'),
-                    ('Mobilizador Portfólio Priorizado', 'Conexão (105%)', '% Atg'), ('Mobilizador Portfólio Priorizado', 'Conexão (105%)', 'Subord. na Veloc. do Mês'),
-                    ('Mobilizador Portfólio Priorizado', 'Intradia', 'Nec. Dia'), ('Mobilizador Portfólio Priorizado', 'Intradia', 'Rlz Dia'), ('Mobilizador Portfólio Priorizado', 'Intradia', '% Ating')
+    <!-- SheetJS Library -->
+    <script src="xlsx.full.min.js"></script>
+    
+    <script>
+        // Dados das correções aplicadas
+        const MOBILIZADOR_CONFIGS = {
+            'Mobilizador Desembolso Agro': {
+                'campos': [
+                    { 'coluna': 'S', 'nome': 'Atg' },
+                    { 'coluna': 'T', 'nome': 'Atg_T' },  // CORRIGIDO
+                    { 'coluna': 'U', 'nome': 'Atg_U' }   // CORRIGIDO
                 ]
+            },
+            'Mobilizador Regulariza Dívidas Agro': {
+                'campos': [
+                    { 'coluna': 'AB', 'nome': 'Conexao_105' },
+                    { 'coluna': 'AC', 'nome': 'Conexao_AC' },  // CORRIGIDO
+                    { 'coluna': 'AD', 'nome': 'Conexao_AD' },  // CORRIGIDO
+                    { 'coluna': 'AE', 'nome': 'Conexao_AE' },  // CORRIGIDO
+                    { 'coluna': 'AF', 'nome': 'Conexao_AF' },  // CORRIGIDO
+                    { 'coluna': 'AG', 'nome': 'Conexao_AG' }   // CORRIGIDO
+                ]
+            }
+        };
+
+        let analyzedData = null;
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadZone = document.getElementById('uploadZone');
+            const uploadSection = document.getElementById('uploadSection');
+
+            // File input change
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // Drag and drop events
+            uploadSection.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadSection.classList.add('dragover');
+            });
+
+            uploadSection.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
+            });
+
+            uploadSection.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
                 
-                # Garante que o número de colunas corresponde
-                if len(df_temp.columns) != len(col_info):
-                     raise ValueError(f"O número de colunas no arquivo ({len(df_temp.columns)}) não corresponde ao esperado ({len(col_info)}).")
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    processFile(files[0]);
+                }
+            });
+        });
 
-                df_final = df_temp.copy()
-                df_final.columns = pd.MultiIndex.from_tuples(col_info)
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
 
-                # Atualiza a UI
-                pyscript.write("status-message", "Arquivo carregado e processado com sucesso!", append=False)
-                document.getElementById('status-message').classList.add("success")
-                document.getElementById('btn-pf').disabled = False
-                document.getElementById('btn-giro').disabled = False
-                document.getElementById('btn-agro').disabled = False
-                document.getElementById('btn-reg').disabled = False
-                document.getElementById('btn-port').disabled = False
+        function processFile(file) {
+            // Validar arquivo
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                showError('Por favor, selecione um arquivo Excel válido (.xlsx ou .xls)');
+                return;
+            }
 
-            except Exception as e:
-                pyscript.write("status-message", f"Erro ao processar o arquivo: {e}", append=False)
-                document.getElementById('status-message').classList.remove("success")
-                df_final = None
+            if (file.size > 50 * 1024 * 1024) {
+                showError('Arquivo muito grande. Tamanho máximo: 50MB');
+                return;
+            }
 
-        # --- Função que lida com o upload do arquivo (ponte JS-Python) ---
-        def handle_file_upload(event):
-            file_list = event.target.files
-            if not file_list or len(file_list) == 0:
-                pyscript.write("status-message", "Nenhum arquivo selecionado.", append=False)
-                return
+            showLoading();
             
-            file = file_list[0]
-            if not file.name.endswith(('.xlsx', '.xls')):
-                pyscript.write("status-message", "Por favor, selecione um arquivo Excel válido (.xlsx ou .xls).", append=False)
-                return
-
-            try:
-                # Usa a biblioteca JS 'xlsx' para ler o arquivo
-                data = XLSX.read(file.arrayBuffer())
-                first_sheet_name = data.SheetNames[0]
-                first_sheet = data.Sheets[first_sheet_name]
-                
-                # Converte a planilha para uma lista de listas (array de arrays)
-                # O {header: 1} é crucial para obter os dados brutos
-                json_data = XLSX.utils.sheet_to_json(first_sheet, {header: 1})
-                
-                # Chama a função Python para processar os dados
-                process_excel_data(json_data.to_py())
-
-            except Exception as e:
-                pyscript.write("status-message", f"Erro ao ler o arquivo: {e}", append=False)
-                df_final = None
-
-
-        # --- Função de Geração de Ranking (mesma da versão anterior) ---
-        def generate_ranking(mobilizador_name):
-            if df_final is None:
-                pyscript.write("plot-container", "<p>Por favor, carregue um arquivo .xlsx primeiro.</p>")
-                return
-
-            pyscript.write("plot-container", "")
-            nec_col = (mobilizador_name, 'Intradia', 'Nec. Dia')
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Pegar a primeira planilha
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Converter para JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    // Analisar dados
+                    analyzedData = analyzeMobilizerData(jsonData);
+                    
+                    // Mostrar resultados
+                    displayResults(analyzedData);
+                    
+                } catch (error) {
+                    console.error('Erro ao processar arquivo:', error);
+                    showError('Erro ao processar arquivo Excel. Verifique se o formato está correto.');
+                } finally {
+                    hideLoading();
+                }
+            };
             
-            if nec_col not in df_final.columns:
-                pyscript.write("plot-container", f"<p>Coluna 'Nec. Dia' não encontrada para {mobilizador_name}.</p>")
-                return
+            reader.readAsArrayBuffer(file);
+        }
 
-            df_ranking = df_final.dropna(subset=[nec_col]).copy()
-            df_ranking['Nec. Dia Valor'] = pd.to_numeric(df_ranking[nec_col], errors='coerce').fillna(0)
-            df_ranking = df_ranking[df_ranking['Nec. Dia Valor'] > 0]
+        function analyzeMobilizerData(data) {
+            const results = {};
+            let totalRecords = 0;
+            
+            // Encontrar cabeçalhos
+            const headers = data[0] || [];
+            
+            // Processar cada grupo de mobilizador
+            for (const [grupo, config] of Object.entries(MOBILIZADOR_CONFIGS)) {
+                const grupoData = findMobilizerGroupData(data, grupo, headers);
+                if (grupoData) {
+                    results[grupo] = grupoData;
+                    totalRecords += grupoData.mobilizadores.length;
+                }
+            }
+            
+            return {
+                grupos: results,
+                totalMobilizadores: totalRecords,
+                timestamp: new Date().toLocaleString('pt-BR')
+            };
+        }
 
-            if df_ranking.empty:
-                pyscript.write("plot-container", f"<p>Nenhum dado com 'Nec. Dia' > 0 encontrado para {mobilizador_name}.</p>")
-                return
+        function findMobilizerGroupData(data, grupoNome, headers) {
+            let startRow = -1;
+            
+            // Encontrar linha do grupo
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
+                if (row && row.some(cell => 
+                    typeof cell === 'string' && cell.includes(grupoNome)
+                )) {
+                    startRow = i + 1;
+                    break;
+                }
+            }
+            
+            if (startRow === -1) return null;
+            
+            const config = MOBILIZADOR_CONFIGS[grupoNome];
+            const mobilizadores = [];
+            const columnIndexes = {};
+            
+            // Mapear colunas
+            for (const campo of config.campos) {
+                const colIndex = headers.findIndex(h => 
+                    h && h.toString().toUpperCase().includes(campo.coluna.toUpperCase())
+                );
+                if (colIndex !== -1) {
+                    columnIndexes[campo.nome] = colIndex;
+                }
+            }
+            
+            // Extrair dados dos mobilizadores
+            for (let i = startRow; i < data.length; i++) {
+                const row = data[i];
+                
+                // Parar se encontrar outro grupo
+                if (row && row.some(cell => 
+                    typeof cell === 'string' && 
+                    cell.includes('Mobilizador') && 
+                    !cell.includes(grupoNome)
+                )) {
+                    break;
+                }
+                
+                // Skip linha vazia
+                if (!row || row.length === 0 || !row[0]) continue;
+                
+                const nome = row[0];
+                let percentualTotal = 0;
+                let camposCount = 0;
+                
+                // Calcular percentual médio dos campos disponíveis
+                for (const [campoNome, colIndex] of Object.entries(columnIndexes)) {
+                    const valor = row[colIndex];
+                    if (valor !== undefined && valor !== null && valor !== '') {
+                        const percentual = parseFloat(valor.toString().replace('%', '').replace(',', '.'));
+                        if (!isNaN(percentual)) {
+                            percentualTotal += percentual;
+                            camposCount++;
+                        }
+                    }
+                }
+                
+                if (camposCount > 0) {
+                    const percentualFinal = percentualTotal / camposCount;
+                    mobilizadores.push({
+                        nome: nome,
+                        percentual: percentualFinal.toFixed(2),
+                        camposUsados: camposCount
+                    });
+                }
+            }
+            
+            // Ordenar por percentual
+            mobilizadores.sort((a, b) => parseFloat(b.percentual) - parseFloat(a.percentual));
+            
+            return {
+                mobilizadores: mobilizadores,
+                total: mobilizadores.length,
+                esperado: grupoNome.includes('Desembolso') ? 12 : 22
+            };
+        }
 
-            df_ranking = df_ranking.sort_values(by='Nec. Dia Valor', ascending=True).tail(10)
-            df_ranking['Agencia_Carteira'] = df_ranking[('Info', 'Dependência')].str.strip() + ' (' + df_ranking[('Info', 'Carteira')].astype(str).str.strip() + ')'
+        function displayResults(data) {
+            const statsContainer = document.getElementById('stats');
+            const rankingContainer = document.getElementById('rankingContent');
+            
+            // Mostrar estatísticas
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${data.totalMobilizadores}</div>
+                    <div class="stat-label">Total de Mobilizadores</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${Object.keys(data.grupos).length}</div>
+                    <div class="stat-label">Grupos Analisados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${data.timestamp.split(' ')[0]}</div>
+                    <div class="stat-label">Data da Análise</div>
+                </div>
+            `;
+            
+            // Mostrar rankings por grupo
+            let html = '';
+            Object.entries(data.grupos).forEach(([grupo, info], index) => {
+                html += `
+                    <div class="mobilizador-group">
+                        <h3 class="mobilizer-title">${grupo}</h3>
+                        <p style="margin-bottom: 1rem; color: #6b7280;">
+                            Encontrados: <strong>${info.total}</strong> | Esperado: <strong>${info.esperado}</strong>
+                        </p>
+                        <ul class="ranking-list">
+                `;
+                
+                info.mobilizadores.forEach((mobilizer, rankIndex) => {
+                    const rankClass = rankIndex < 3 ? `top-${rankIndex + 1}` : '';
+                    const percentage = parseFloat(mobilizer.percentual);
+                    const percentageClass = percentage >= 100 ? 'excellent' : 
+                                         percentage >= 80 ? 'good' : 'poor';
+                    
+                    html += `
+                        <li class="ranking-item ${rankClass}">
+                            <div class="rank-number">${rankIndex + 1}º</div>
+                            <div class="mobilizer-name">${mobilizer.nome}</div>
+                            <div class="percentage ${percentageClass}">
+                                ${mobilizer.percentual}%
+                            </div>
+                        </li>
+                    `;
+                });
+                
+                html += `
+                        </ul>
+                    </div>
+                `;
+            });
+            
+            rankingContainer.innerHTML = html;
+            
+            // Mostrar resultados
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('uploadSection').style.display = 'none';
+        }
 
-            plt.figure(figsize=(12, 8))
-            sns.set_theme(style="whitegrid")
-            palette = ['#0066B3' if i < len(df_ranking) - 1 else '#FFED00' for i in range(len(df_ranking))]
-            ax = sns.barplot(x='Nec. Dia Valor', y='Agencia_Carteira', data=df_ranking, palette=palette)
-            ax.set_title(f'Top 10 - Necessidade do Dia - {mobilizador_name}', fontsize=18, fontweight='bold', color='#0066B3')
-            ax.set_xlabel('Necessidade do Dia (R$)', fontsize=12)
-            ax.set_ylabel('Agência (Carteira)', fontsize=12)
-            ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x), ',')))
-            plt.tight_layout()
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('results').style.display = 'none';
+            hideError();
+        }
 
-            pyscript.write("plot-container", plt)
-            plt.close()
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
 
-    </py-script>
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function downloadResults() {
+            if (!analyzedData) return;
+            
+            const dataStr = JSON.stringify(analyzedData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `rankings_bb_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadImage() {
+            if (!analyzedData) return;
+            
+            // Criar canvas para a imagem
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Configurar canvas
+            canvas.width = 1200;
+            const estimatedHeight = Object.keys(analyzedData.grupos).length * 300 + 200;
+            canvas.height = Math.max(estimatedHeight, 600);
+            
+            // Fundo
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Título
+            ctx.fillStyle = '#1e3a8a';
+            ctx.font = 'bold 32px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Rankings BB Mobilizadores', canvas.width/2, 60);
+            
+            // Data
+            ctx.font = '18px Arial';
+            ctx.fillText(analyzedData.timestamp, canvas.width/2, 90);
+            
+            let yPos = 150;
+            
+            // Rankings por grupo
+            Object.entries(analyzedData.grupos).forEach(([grupo, info]) => {
+                // Título do grupo
+                ctx.fillStyle = '#1e3a8a';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(grupo, 50, yPos);
+                
+                // Estatísticas
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#6b7280';
+                ctx.fillText(`Encontrados: ${info.total} | Esperado: ${info.esperado}`, 50, yPos + 25);
+                
+                yPos += 50;
+                
+                // Top 10 mobilizadores
+                info.mobilizadores.slice(0, 10).forEach((mobilizer, index) => {
+                    const rank = index + 1;
+                    const percentage = parseFloat(mobilizer.percentual);
+                    
+                    // Ranking
+                    ctx.font = 'bold 20px Arial';
+                    ctx.fillStyle = '#1e3a8a';
+                    ctx.fillText(`${rank}º`, 50, yPos);
+                    
+                    // Nome
+                    ctx.font = '18px Arial';
+                    ctx.fillStyle = '#1f2937';
+                    ctx.fillText(mobilizer.nome.substring(0, 50), 120, yPos);
+                    
+                    // Percentual
+                    const percentageColor = percentage >= 100 ? '#10b981' : 
+                                          percentage >= 80 ? '#fbbf24' : '#ef4444';
+                    ctx.fillStyle = percentageColor;
+                    ctx.font = 'bold 18px Arial';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(`${mobilizer.percentual}%`, canvas.width - 50, yPos);
+                    
+                    yPos += 30;
+                });
+                
+                yPos += 50;
+            });
+            
+            // Baixar
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `rankings_bb_${new Date().toISOString().split('T')[0]}.png`;
+                link.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        // Verificar se xlsx.full.min.js está disponível
+        if (typeof XLSX === 'undefined') {
+            showError('Biblioteca xlsx.full.min.js não encontrada. Certifique-se de que o arquivo está na raiz do projeto.');
+        }
+    </script>
 </body>
 </html>
