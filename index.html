@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <title>Ranking Mobilizadores - BB</title>
 
-  <!-- XLSX local na raiz do projeto -->
+  <!-- SheetJS na raiz do repositório -->
   <script src="./xlsx.full.min.js"></script>
 
-  <!-- Html2Canvas via CDN -->
+  <!-- Html2Canvas para exportar PNG -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
@@ -64,7 +64,7 @@
     .subtitle {
       font-size: 12px;
       color: var(--bb-muted);
-      max-width: 780px;
+      max-width: 820px;
     }
 
     .upload-area {
@@ -245,9 +245,9 @@
     <div class="brand-pill">Ranking Mobilizadores • Banco do Brasil</div>
     <h1>Painéis de Ranking por Mobilizador</h1>
     <div class="subtitle">
-      Regras: Prefixo/Dependência/Carteira/Tipo da Carteira da linha 1.
-      Cada painel usa só as colunas Intradia (ou %Atg) do seu Mobilizador.
-      A mesma agência/carteira aparece em todos os rankings em que tiver Nec. Dia / %Atg no bloco correspondente.
+      Leitura baseada nos cabeçalhos mesclados da planilha.
+      Cada painel usa <strong>somente</strong> as colunas Intradia (ou %Atg do Icred) do seu Mobilizador.
+      Uma mesma agência/carteira aparece em todos os rankings em que tiver indicador no bloco correspondente.
     </div>
   </div>
 
@@ -263,65 +263,7 @@
     const statusEl = document.getElementById("status");
     const cardsContainer = document.getElementById("cards-container");
 
-    const DATA_START_ROW = 3; // índice 3 = linha 4
-
-    // Colunas fixas (0-based)
-    const COL_PREFIXO = 0; // A
-    const COL_DEP     = 1; // B
-    const COL_CART    = 3; // D
-    const COL_TIPO    = 4; // E
-
-    // Mapeamento fixo por mobilizador (apenas as colunas de Intradia / %Atg)
-    const MOBILIZADORES = [
-      {
-        key: "desembolso_pf",
-        label: "Mobilizador Desembolso PF",
-        mode: "intradia",
-        necCol: colToIndex("I"),
-        rlzCol: colToIndex("J"),
-        pctCol: colToIndex("K")
-      },
-      {
-        key: "desembolso_giro",
-        label: "Mobilizador Desembolso Giro",
-        mode: "intradia",
-        necCol: colToIndex("O"),
-        rlzCol: colToIndex("P"),
-        pctCol: colToIndex("Q")
-      },
-      {
-        key: "desembolso_agro",
-        label: "Mobilizador Desembolso Agro",
-        mode: "intradia",
-        necCol: colToIndex("U"),
-        rlzCol: colToIndex("V"),
-        pctCol: colToIndex("W")
-      },
-      {
-        key: "icred_1590",
-        label: "Mobilizador Icred 15/90",
-        mode: "icred",
-        necCol: null,
-        rlzCol: null,
-        pctCol: colToIndex("Y")
-      },
-      {
-        key: "regulariza_dividas_agro",
-        label: "Mobilizador Regulariza Dívidas Agro",
-        mode: "intradia",
-        necCol: colToIndex("AD"),
-        rlzCol: colToIndex("AE"),
-        pctCol: colToIndex("AF")
-      },
-      {
-        key: "portfolio_priorizado",
-        label: "Mobilizador Portfólio Priorizado",
-        mode: "intradia",
-        necCol: colToIndex("AJ"),
-        rlzCol: colToIndex("AK"),
-        pctCol: colToIndex("AL")
-      }
-    ];
+    const DATA_START_ROW = 3; // 0-based: linha 4 da planilha
 
     document.getElementById("file").addEventListener("change", handleFile, false);
 
@@ -331,86 +273,290 @@
       statusEl.textContent = "Lendo planilha...";
       const reader = new FileReader();
 
-      reader.onload = function(ev) {
+      reader.onload = function (ev) {
         try {
           const data = new Uint8Array(ev.target.result);
           const wb = XLSX.read(data, { type: "array" });
           const sheetName = wb.SheetNames[0];
           const ws = wb.Sheets[sheetName];
-          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
-          buildRankings(rows);
+
+          const grid = buildGridWithMerges(ws);
+          processGrid(grid);
         } catch (err) {
           console.error(err);
-          statusEl.textContent = "Erro ao ler planilha. Confira se está no layout padrão.";
+          statusEl.textContent = "Erro ao ler planilha. Confirme se é o layout padrão.";
         }
       };
 
       reader.readAsArrayBuffer(file);
     }
 
-    function buildRankings(rows) {
+    // --- Utils básicos ---
+
+    function norm(str) {
+      if (str == null) return "";
+      return str
+        .toString()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9%]/g, "");
+    }
+
+    function toNumber(v) {
+      if (v == null || v === "") return null;
+      if (typeof v === "number") return v;
+      let s = v.toString().trim().replace("%", "");
+      if (s.includes(",") && s.includes(".")) {
+        s = s.replace(/\./g, "").replace(",", ".");
+      } else if (s.includes(",") && !s.includes(".")) {
+        s = s.replace(",", ".");
+      }
+      const n = parseFloat(s);
+      return isNaN(n) ? null : n;
+    }
+
+    function formatNumber(n) {
+      if (n == null || isNaN(n)) return "";
+      return Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    }
+
+    function pctClass(p) {
+      if (p == null) return "";
+      if (p >= 105) return "good";
+      if (p >= 90) return "medium";
+      return "bad";
+    }
+
+    function colLetter(idx) {
+      let n = idx + 1;
+      let s = "";
+      while (n > 0) {
+        const r = (n - 1) % 26;
+        s = String.fromCharCode(65 + r) + s;
+        n = Math.floor((n - 1) / 26);
+      }
+      return s;
+    }
+
+    // --- Expande merges para ter cabeçalho coerente ---
+
+    function buildGridWithMerges(ws) {
+      const ref = ws["!ref"];
+      const range = XLSX.utils.decode_range(ref);
+      const rows = [];
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        const row = [];
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const addr = XLSX.utils.encode_cell({ r: R, c: C });
+          const cell = ws[addr];
+          row.push(cell ? cell.v : null);
+        }
+        rows.push(row);
+      }
+
+      const merges = ws["!merges"] || [];
+      merges.forEach(m => {
+        const base = rows[m.s.r][m.s.c];
+        for (let r = m.s.r; r <= m.e.r; r++) {
+          for (let c = m.s.c; c <= m.e.c; c++) {
+            if (rows[r][c] == null || rows[r][c] === "") {
+              rows[r][c] = base;
+            }
+          }
+        }
+      });
+
+      return rows;
+    }
+
+    // --- Detecção de blocos Mobilizador ---
+
+    function detectMobilizerBlocks(grid) {
+      const row1 = grid[0];
+      const blocks = [];
+      let c = 0;
+      while (c < row1.length) {
+        const v = row1[c];
+        if (typeof v === "string" && v.includes("Mobilizador")) {
+          const label = v;
+          let start = c;
+          let end = c;
+          c++;
+          while (c < row1.length && grid[0][c] === label) {
+            end = c;
+            c++;
+          }
+          blocks.push({ label, startCol: start, endCol: end });
+        } else {
+          c++;
+        }
+      }
+      return blocks;
+    }
+
+    function detectMetricsForBlock(grid, block) {
+      const { label, startCol, endCol } = block;
+      const isIcred = norm(label).includes("icred1590");
+      if (isIcred) {
+        // Procura %Atg dentro do bloco (linha 2 ou 3)
+        let pctCol = null;
+        for (let c = startCol; c <= endCol; c++) {
+          for (let r = 1; r <= 2; r++) {
+            const t = grid[r][c];
+            if (typeof t === "string" && norm(t).includes("%atg")) {
+              pctCol = c;
+              break;
+            }
+          }
+          if (pctCol != null) break;
+        }
+        if (pctCol == null) return null;
+        return { mode: "icred", pctCol, necCol: null, rlzCol: null };
+      }
+
+      // Demais: Intradia
+      let necCol = null, rlzCol = null, pctCol = null;
+
+      // Olha somente colunas marcadas como Intradia (linha 2)
+      for (let c = startCol; c <= endCol; c++) {
+        const t2 = grid[1][c];
+        if (typeof t2 === "string" && norm(t2).includes("intradia")) {
+          const t3 = grid[2][c];
+          const n3 = norm(t3);
+          if (n3.includes("necdia") && necCol == null) necCol = c;
+          else if (n3.includes("rlzdia") && rlzCol == null) rlzCol = c;
+          else if ((n3.includes("%atg") || n3.includes("%ating")) && pctCol == null) pctCol = c;
+        }
+      }
+
+      // Fallback: se por algum motivo Intradia não ficou claramente marcado,
+      // tenta achar Nec/Rlz/%Atg na linha 3 dentro do bloco
+      if (necCol == null || pctCol == null) {
+        for (let c = startCol; c <= endCol; c++) {
+          const n3 = norm(grid[2][c]);
+          if (n3.includes("necdia") && necCol == null) necCol = c;
+          else if (n3.includes("rlzdia") && rlzCol == null) rlzCol = c;
+          else if ((n3.includes("%atg") || n3.includes("%ating")) && pctCol == null) pctCol = c;
+        }
+      }
+
+      if (necCol == null || pctCol == null) {
+        return null; // bloco sem estrutura Intradia completa
+      }
+
+      return { mode: "intradia", necCol, rlzCol, pctCol };
+    }
+
+    // --- Processamento principal ---
+
+    function processGrid(grid) {
       cardsContainer.innerHTML = "";
 
-      if (!rows || rows.length <= DATA_START_ROW) {
+      if (!grid || grid.length <= DATA_START_ROW) {
         statusEl.textContent = "Planilha sem linhas de dados.";
         return;
       }
 
-      const header = rows[0] || [];
-      if (!validaCabecalho(header)) {
-        statusEl.textContent = "Cabeçalho diferente do esperado na linha 1.";
+      const header = grid[0];
+
+      const prefixIdx = findCol(header, ["prefixo"]);
+      const depIdx    = findCol(header, ["dependencia", "dependência"]);
+      const cartIdx   = findCol(header, ["carteira"]);
+      const tipoIdx   = findCol(header, ["tipodacarteira", "tipocarteira"]);
+
+      if ([prefixIdx, depIdx, cartIdx, tipoIdx].some(i => i === -1)) {
+        statusEl.textContent = "Não encontrei Prefixo / Dependência / Carteira / Tipo da Carteira na linha 1.";
         return;
       }
 
-      let any = false;
+      const blocks = detectMobilizerBlocks(grid);
 
-      MOBILIZADORES.forEach(m => {
-        const ranking = montaRanking(rows, m);
-        const card = criaCard(m, ranking);
-        cardsContainer.appendChild(card);
-        if (ranking.length) any = true;
+      const configs = [];
+      for (const b of blocks) {
+        const metrics = detectMetricsForBlock(grid, b);
+        if (!metrics) continue;
+        configs.push({
+          key: norm(b.label),
+          label: b.label,
+          startCol: b.startCol,
+          endCol: b.endCol,
+          ...metrics
+        });
+      }
+
+      // Ordena na sequência desejada
+      const order = [
+        "mobilizadordesembolsopf",
+        "mobilizadordesembolsogiro",
+        "mobilizadordesembolsoagro",
+        "mobilizadoricred1590",
+        "mobilizadorregularizadividasagro",
+        "mobilizadorportfoliopriorizado",
+        "mobilizadorportfoliopriorizad"
+      ];
+      configs.sort((a, b) => {
+        const ia = order.indexOf(a.key);
+        const ib = order.indexOf(b.key);
+        if (ia === -1 && ib === -1) return 0;
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
       });
 
+      let any = false;
+
+      for (const cfg of configs) {
+        const ranking = buildRanking(grid, cfg, {
+          prefixIdx, depIdx, cartIdx, tipoIdx
+        });
+        const card = createRankingCard(cfg, ranking);
+        cardsContainer.appendChild(card);
+        if (ranking.length) any = true;
+      }
+
       statusEl.textContent = any
-        ? "Rankings gerados. Cada painel considera apenas o seu Mobilizador."
-        : "Nenhuma linha elegível encontrada nos blocos dos Mobilizadores.";
+        ? "Rankings gerados com base em cada bloco de Mobilizador (Intradia / Icred)."
+        : "Nenhuma linha elegível encontrada para os mobilizadores.";
     }
 
-    function validaCabecalho(h) {
-      const n = x => (x || "").toString().trim().toLowerCase();
-      return (
-        n(h[COL_PREFIXO]).startsWith("prefixo") &&
-        n(h[COL_DEP]).startsWith("depend") &&
-        n(h[COL_CART]).startsWith("carteira") &&
-        n(h[COL_TIPO]).includes("tipo")
-      );
+    function findCol(row, labels) {
+      const targets = labels.map(norm);
+      for (let c = 0; c < row.length; c++) {
+        if (targets.includes(norm(row[c]))) return c;
+      }
+      return -1;
     }
 
-    function montaRanking(rows, mob) {
+    function buildRanking(grid, cfg, base) {
+      const { prefixIdx, depIdx, cartIdx, tipoIdx } = base;
       const ranking = [];
 
-      for (let r = DATA_START_ROW; r < rows.length; r++) {
-        const row = rows[r] || [];
-        const prefixo = row[COL_PREFIXO];
+      for (let r = DATA_START_ROW; r < grid.length; r++) {
+        const row = grid[r];
 
-        if (prefixo === null || prefixo === undefined || prefixo === "") continue;
+        const prefixo = row[prefixIdx];
+        if (prefixo == null || prefixo === "") continue;
 
-        const dependencia  = row[COL_DEP];
-        const carteira     = row[COL_CART];
-        const tipoCarteira = row[COL_TIPO];
+        const dependencia  = row[depIdx];
+        const carteira     = row[cartIdx];
+        const tipoCarteira = row[tipoIdx];
 
-        let nec = mob.necCol != null ? toNumber(row[mob.necCol]) : null;
-        let rlz = mob.rlzCol != null ? toNumber(row[mob.rlzCol]) : null;
-        let pct = mob.pctCol != null ? toNumber(row[mob.pctCol]) : null;
+        let nec = null, rlz = null, pct = null;
 
-        if (mob.mode === "icred") {
-          // Icred entra se tiver %Atg naquele bloco
+        if (cfg.mode === "icred") {
+          pct = toNumber(row[cfg.pctCol]);
           if (pct == null || isNaN(pct)) continue;
         } else {
-          // Intradia: só entra se tem Nec. Dia preenchido no bloco do mobilizador
+          nec = toNumber(row[cfg.necCol]);
           if (nec == null || isNaN(nec)) continue;
 
-          // Se não tem %Atg mas tem Nec e Rlz, tenta calcular
+          if (cfg.rlzCol != null) {
+            rlz = toNumber(row[cfg.rlzCol]);
+          }
+
+          pct = toNumber(row[cfg.pctCol]);
           if ((pct == null || isNaN(pct)) && rlz != null && !isNaN(rlz) && nec !== 0) {
             pct = (rlz / nec) * 100;
           }
@@ -429,55 +575,16 @@
         });
       }
 
-      // Ordena do maior pro menor %Atg
       ranking.sort((a, b) => (b.pct || 0) - (a.pct || 0));
       return ranking;
     }
 
-    // Utilitários numéricos
+    // --- UI: monta cards e exporta PNG ---
 
-    function toNumber(v) {
-      if (v === null || v === undefined || v === "") return null;
-      if (typeof v === "number") return v;
-      let s = v.toString().trim().replace("%", "");
-
-      if (s.includes(",") && s.includes(".")) {
-        s = s.replace(/\./g, "").replace(",", ".");
-      } else if (s.includes(",") && !s.includes(".")) {
-        s = s.replace(",", ".");
-      }
-
-      const n = parseFloat(s);
-      return isNaN(n) ? null : n;
-    }
-
-    function colToIndex(col) {
-      col = col.toUpperCase();
-      let n = 0;
-      for (let i = 0; i < col.length; i++) {
-        n = n * 26 + (col.charCodeAt(i) - 64);
-      }
-      return n - 1;
-    }
-
-    function pctClass(pct) {
-      if (pct == null) return "";
-      if (pct >= 105) return "good";
-      if (pct >= 90)  return "medium";
-      return "bad";
-    }
-
-    function formatNumber(n) {
-      if (n === null || n === undefined || isNaN(n)) return "";
-      return Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
-    }
-
-    // UI: criação dos cards
-
-    function criaCard(m, ranking) {
+    function createRankingCard(cfg, ranking) {
       const card = document.createElement("div");
       card.className = "card";
-      card.id = `card-${m.key}`;
+      card.id = `card-${cfg.key}`;
 
       const header = document.createElement("div");
       header.className = "card-header";
@@ -487,15 +594,15 @@
 
       const title = document.createElement("div");
       title.className = "card-title";
-      title.textContent = m.label;
+      title.textContent = cfg.label;
       left.appendChild(title);
 
       const subtitle = document.createElement("div");
       subtitle.className = "card-subtitle";
       subtitle.textContent =
-        m.mode === "icred"
+        cfg.mode === "icred"
           ? "Ranking por %Atg no bloco Icred 15/90."
-          : "Ranking por %Atg Intradia. Só entra quem tem Nec. Dia nesse mobilizador.";
+          : "Ranking por %Atg Intradia do bloco deste mobilizador.";
       left.appendChild(subtitle);
 
       const right = document.createElement("div");
@@ -508,10 +615,15 @@
         : "Sem linhas elegíveis";
       right.appendChild(count);
 
+      const cols = document.createElement("div");
+      cols.className = "badge";
+      cols.textContent = `Bloco ${colLetter(cfg.startCol)}–${colLetter(cfg.endCol)}`;
+      right.appendChild(cols);
+
       const btn = document.createElement("button");
       btn.className = "btn-png";
       btn.innerHTML = '<span class="icon">⬇</span><span>Baixar PNG</span>';
-      btn.onclick = () => downloadCardAsPNG(card, `ranking_${m.key}.png`);
+      btn.onclick = () => downloadCardAsPNG(card, `ranking_${cfg.key}.png`);
       right.appendChild(btn);
 
       header.appendChild(left);
@@ -522,7 +634,7 @@
         const empty = document.createElement("div");
         empty.className = "empty";
         empty.textContent =
-          "Nenhuma linha com Nec. Dia / %Atg válido neste mobilizador.";
+          "Nenhuma linha com indicador válido neste mobilizador.";
         card.appendChild(empty);
         return card;
       }
@@ -587,9 +699,9 @@
       const note = document.createElement("div");
       note.className = "small-note";
       note.textContent =
-        m.mode === "icred"
+        cfg.mode === "icred"
           ? "Critério: %Atg no bloco Icred 15/90. Ordenado de maior para menor."
-          : "Critério: Nec. Dia preenchido neste mobilizador e %Atg válido (da coluna ou Rlz/Nec).";
+          : "Critério: Nec. Dia presente e %Atg válido no bloco deste mobilizador (colunas Intradia).";
       card.appendChild(note);
 
       return card;
