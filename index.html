@@ -130,7 +130,6 @@
     .card-title {
       font-size: 14px;
       font-weight: 700;
-      color: --bb-blue;
       color: var(--bb-blue);
       text-transform: uppercase;
       letter-spacing: 0.06em;
@@ -246,9 +245,8 @@
     <div class="brand-pill">Ranking Mobilizadores • Banco do Brasil</div>
     <h1>Painéis de Ranking por Mobilizador</h1>
     <div class="subtitle">
-      Estrutura lida considerando células mescladas: Linha 1 (Prefixo / Agência / Carteira / Tipo),
-      blocos de Mobilizadores mesclados, Intradia identificada via cabeçalhos.
-      Cada painel abaixo traz apenas quem tem indicador no bloco correto.
+      Cada painel lê diretamente o layout padrão (células mescladas incluídas),
+      usa somente as colunas do mobilizador correto e só entra quem tem Nec. Dia / %Atg naquele bloco.
     </div>
   </div>
 
@@ -264,7 +262,73 @@
     const statusEl = document.getElementById("status");
     const cardsContainer = document.getElementById("cards-container");
 
-    const DATA_START_ROW = 3; // linha 4 (0-based)
+    // Linhas (0-based)
+    const HEADER_ROW = 0;     // Prefixo / Dependência / Carteira / Tipo da Carteira
+    const DATA_START_ROW = 3; // Dados a partir da linha 4
+
+    // Colunas fixas (0-based)
+    const COL_PREFIXO = 0;   // A
+    const COL_DEP     = 1;   // B
+    const COL_CART    = 3;   // D
+    const COL_TIPO    = 4;   // E
+
+    // Mapa fixo dos mobilizadores (pelas colunas reais do layout)
+    const MOBILIZADORES = [
+      {
+        key: "desembolso_pf",
+        label: "Mobilizador Desembolso PF",
+        title: "Desembolso PF",
+        mode: "intradia",
+        necCol: colToIndex("I"),
+        rlzCol: colToIndex("J"),
+        pctCol: colToIndex("K")
+      },
+      {
+        key: "desembolso_giro",
+        label: "Mobilizador Desembolso Giro",
+        title: "Desembolso Giro",
+        mode: "intradia",
+        necCol: colToIndex("O"),
+        rlzCol: colToIndex("P"),
+        pctCol: colToIndex("Q")
+      },
+      {
+        key: "desembolso_agro",
+        label: "Mobilizador Desembolso Agro",
+        title: "Desembolso Agro",
+        mode: "intradia",
+        necCol: colToIndex("U"),
+        rlzCol: colToIndex("V"),
+        pctCol: colToIndex("W")
+      },
+      {
+        key: "icred_1590",
+        label: "Mobilizador Icred 15/90",
+        title: "Icred 15/90",
+        mode: "icred",
+        necCol: null,
+        rlzCol: null,
+        pctCol: colToIndex("Y")
+      },
+      {
+        key: "regulariza_agro",
+        label: "Mobilizador Regulariza Dívidas Agro",
+        title: "Regulariza Dívidas Agro",
+        mode: "intradia",
+        necCol: colToIndex("AD"),
+        rlzCol: colToIndex("AE"),
+        pctCol: colToIndex("AF")
+      },
+      {
+        key: "portfolio_priorizado",
+        label: "Mobilizador Portfólio Priorizado",
+        title: "Portfólio Priorizado",
+        mode: "intradia",
+        necCol: colToIndex("AJ"),
+        rlzCol: colToIndex("AK"),
+        pctCol: colToIndex("AL")
+      }
+    ];
 
     document.getElementById("file").addEventListener("change", handleFile, false);
 
@@ -280,131 +344,38 @@
           const wb = XLSX.read(data, { type: "array" });
           const sheetName = wb.SheetNames[0];
           const ws = wb.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
 
-          const grid = buildGridWithMerges(ws);
-          buildRankingsFromGrid(grid);
+          buildRankings(rows);
         } catch (err) {
           console.error(err);
-          statusEl.textContent = "Erro ao ler planilha. Confira se está no layout esperado.";
+          statusEl.textContent = "Erro ao ler planilha. Confira se está no layout padrão.";
         }
       };
 
       reader.readAsArrayBuffer(file);
     }
 
-    // Expande !merges: toda célula coberta recebe o valor do canto superior esquerdo
-    function buildGridWithMerges(ws) {
-      const ref = ws['!ref'];
-      const range = XLSX.utils.decode_range(ref);
-      const rows = [];
-
-      for (let R = range.s.r; R <= range.e.r; ++R) {
-        const row = [];
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const addr = XLSX.utils.encode_cell({ r: R, c: C });
-          const cell = ws[addr];
-          row.push(cell ? cell.v : null);
-        }
-        rows.push(row);
-      }
-
-      const merges = ws['!merges'] || [];
-      merges.forEach(m => {
-        const v = rows[m.s.r][m.s.c];
-        for (let R = m.s.r; R <= m.e.r; ++R) {
-          for (let C = m.s.c; C <= m.e.c; ++C) {
-            if (rows[R][C] === null || rows[R][C] === "") {
-              rows[R][C] = v;
-            }
-          }
-        }
-      });
-
-      return rows;
-    }
-
-    function normalize(str) {
-      if (str === null || str === undefined) return "";
-      return str.toString()
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9%]/g, "");
-    }
-
-    function toNumber(v) {
-      if (v === null || v === undefined || v === "") return null;
-      if (typeof v === "number") return v;
-      let s = v.toString().trim().replace("%", "");
-
-      // Se vier no formato 1.234,56
-      if (s.includes(",") && s.includes(".")) {
-        s = s.replace(/\./g, "").replace(",", ".");
-      } else if (s.includes(",") && !s.includes(".")) {
-        s = s.replace(",", ".");
-      }
-
-      const n = parseFloat(s);
-      return isNaN(n) ? null : n;
-    }
-
-    function pctClass(pct) {
-      if (pct == null) return "";
-      if (pct >= 105) return "good";
-      if (pct >= 90)  return "medium";
-      return "bad";
-    }
-
-    function formatNumber(n) {
-      if (n === null || n === undefined || isNaN(n)) return "";
-      return Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
-    }
-
-    function buildRankingsFromGrid(grid) {
+    function buildRankings(rows) {
       cardsContainer.innerHTML = "";
 
-      if (!grid || grid.length <= DATA_START_ROW) {
+      if (!rows || rows.length <= DATA_START_ROW) {
         statusEl.textContent = "Planilha sem linhas de dados.";
         return;
       }
 
-      const headerRow = grid[0];
-
-      const prefixIdx = findHeaderIndex(headerRow, ["Prefixo"]);
-      const depIdx    = findHeaderIndex(headerRow, ["Dependência", "Dependencia"]);
-      const cartIdx   = findHeaderIndex(headerRow, ["Carteira"]);
-      const tipoIdx   = findHeaderIndex(headerRow, ["Tipo da Carteira", "Tipo Carteira"]);
-
-      if ([prefixIdx, depIdx, cartIdx, tipoIdx].some(i => i === -1)) {
-        statusEl.textContent = "Não encontrei Prefixo / Agência / Carteira / Tipo Carteira na linha 1.";
+      const header = rows[HEADER_ROW] || [];
+      if (!matchesHeader(header)) {
+        console.warn("Cabeçalho inesperado:", header);
+        statusEl.textContent = "Layout diferente do esperado (Prefixo/Dependência/Carteira/Tipo na linha 1).";
         return;
       }
 
-      // Detecta blocos dos mobilizadores a partir da linha 1 com merges expandidos
-      const mobBlocks = detectMobilizadorBlocks(grid[0]);
-
-      // Garante só os mobilizadores que queremos, na ordem desejada
-      const order = [
-        "Mobilizador Desembolso PF",
-        "Mobilizador Desembolso Giro",
-        "Mobilizador Desembolso Agro",
-        "Mobilizador Icred 15/90",
-        "Mobilizador Regulariza Dívidas Agro",
-        "Mobilizador Portfólio Priorizado"
-      ];
-
       let any = false;
 
-      order.forEach(label => {
-        const block = mobBlocks.find(b => b.label === label);
-        if (!block) return;
-
-        const config = detectMetricsForBlock(grid, block, label);
-        const ranking = buildRankingForBlock(grid, config, {
-          prefixIdx, depIdx, cartIdx, tipoIdx
-        });
-
-        const card = createRankingCard(config, ranking);
+      MOBILIZADORES.forEach(m => {
+        const ranking = buildRankingForMobilizador(rows, m);
+        const card = createRankingCard(m, ranking);
         cardsContainer.appendChild(card);
         if (ranking.length) any = true;
       });
@@ -414,124 +385,34 @@
         : "Nenhuma linha elegível encontrada nos blocos dos Mobilizadores.";
     }
 
-    function findHeaderIndex(row, labels) {
-      const targets = labels.map(l => normalize(l));
-      for (let c = 0; c < row.length; c++) {
-        if (targets.includes(normalize(row[c]))) return c;
-      }
-      return -1;
+    function matchesHeader(header) {
+      const norm = v => (v || "").toString().trim().toLowerCase();
+      return (
+        norm(header[COL_PREFIXO]).startsWith("prefixo") &&
+        norm(header[COL_DEP]).startsWith("depend") &&
+        norm(header[COL_CART]).startsWith("carteira") &&
+        norm(header[COL_TIPO]).includes("tipo")
+      );
     }
 
-    // Identifica blocos de colunas com o mesmo "Mobilizador ..."
-    function detectMobilizadorBlocks(row0) {
-      const blocks = [];
-      let c = 0;
-      while (c < row0.length) {
-        const v = row0[c];
-        if (typeof v === "string" && v.includes("Mobilizador")) {
-          const label = v;
-          let start = c;
-          let end = c;
-          c++;
-          while (c < row0.length && row0[c] === label) {
-            end = c;
-            c++;
-          }
-          blocks.push({ label, startCol: start, endCol: end });
-        } else {
-          c++;
-        }
-      }
-      return blocks;
-    }
-
-    // Identifica Nec/Rlz/%Atg para cada bloco, usando Intradia x Icred
-    function detectMetricsForBlock(grid, block, label) {
-      const { startCol, endCol } = block;
-      let mode = "intradia";
-      let necCol = null, rlzCol = null, pctCol = null;
-
-      const lname = normalize(label);
-      if (lname.includes("icred")) {
-        mode = "icred";
-      }
-
-      if (mode === "icred") {
-        // Icred: pega a coluna de %Atg dentro do bloco
-        for (let c = startCol; c <= endCol; c++) {
-          const r2 = normalize(grid[1][c]);
-          const r3 = normalize(grid[2][c]);
-          if (r2.includes("%atg") || r3.includes("%atg")) {
-            pctCol = c;
-            break;
-          }
-        }
-      } else {
-        // Intradia: procurar colunas cujo row2/row1 indiquem Intradia e row3 diga Nec/Rlz/%Atg
-        for (let c = startCol; c <= endCol; c++) {
-          const h1 = normalize(grid[1][c]);
-          const h2 = normalize(grid[2][c]);
-          const h3 = normalize(grid[2][c]); // linha 3 (index 2) já com merges
-
-          const isIntradia = h1.includes("intradia") || h2.includes("intradia");
-
-          if (!isIntradia) continue;
-
-          const bottom = normalize(grid[2][c]);
-          const bottom2 = normalize(grid[3] && grid[3][c]); // segurança se mudar linha de indicadores
-
-          const finalHeader = bottom || bottom2;
-
-          if (finalHeader.includes("necdia") && necCol === null) necCol = c;
-          if (finalHeader.includes("rlzdia") && rlzCol === null) rlzCol = c;
-          if (finalHeader.includes("%atg") && pctCol === null) pctCol = c;
-        }
-
-        // Fallback para layout conhecido se não detectar automaticamente
-        if (necCol === null || rlzCol === null || pctCol === null) {
-          if (lname.includes("desembolsopF".toLowerCase())) { /* deixado sem uso */ }
-        }
-      }
-
-      return {
-        key: label.toLowerCase().replace(/\s+/g, "_"),
-        title: label.replace("Mobilizador ", ""),
-        label,
-        mode,
-        startCol,
-        endCol,
-        necCol,
-        rlzCol,
-        pctCol
-      };
-    }
-
-    function buildRankingForBlock(grid, cfg, base) {
-      const { prefixIdx, depIdx, cartIdx, tipoIdx } = base;
-      const { mode, necCol, rlzCol, pctCol } = cfg;
+    function buildRankingForMobilizador(rows, m) {
       const ranking = [];
 
-      if (mode !== "icred" && (necCol == null || pctCol == null)) {
-        return ranking; // sem mapeamento válido para esse bloco
-      }
-      if (mode === "icred" && pctCol == null) {
-        return ranking;
-      }
+      for (let r = DATA_START_ROW; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const prefixo = row[COL_PREFIXO];
 
-      for (let r = DATA_START_ROW; r < grid.length; r++) {
-        const row = grid[r];
-        const prefixo = row[prefixIdx];
-        if (prefixo === null || prefixo === "" || prefixo === undefined) continue;
+        if (prefixo === null || prefixo === undefined || prefixo === "") continue;
 
-        const dependencia  = row[depIdx];
-        const carteira     = row[cartIdx];
-        const tipoCarteira = row[tipoIdx];
+        const dependencia  = row[COL_DEP];
+        const carteira     = row[COL_CART];
+        const tipoCarteira = row[COL_TIPO];
 
-        let nec = necCol != null ? toNumber(row[necCol]) : null;
-        let rlz = rlzCol != null ? toNumber(row[rlzCol]) : null;
-        let pct = pctCol != null ? toNumber(row[pctCol]) : null;
+        let nec = m.necCol != null ? toNumber(row[m.necCol]) : null;
+        let rlz = m.rlzCol != null ? toNumber(row[m.rlzCol]) : null;
+        let pct = m.pctCol != null ? toNumber(row[m.pctCol]) : null;
 
-        if (mode === "icred") {
+        if (m.mode === "icred") {
           if (pct == null || isNaN(pct)) continue;
         } else {
           if (nec == null || isNaN(nec) || nec <= 0) continue;
@@ -556,10 +437,48 @@
       return ranking;
     }
 
-    function createRankingCard(cfg, ranking) {
+    // ---- UI helpers ----
+
+    function colToIndex(col) {
+      col = col.toUpperCase();
+      let n = 0;
+      for (let i = 0; i < col.length; i++) {
+        n = n * 26 + (col.charCodeAt(i) - 64);
+      }
+      return n - 1;
+    }
+
+    function toNumber(v) {
+      if (v === null || v === undefined || v === "") return null;
+      if (typeof v === "number") return v;
+      let s = v.toString().trim().replace("%", "");
+
+      if (s.includes(",") && s.includes(".")) {
+        s = s.replace(/\./g, "").replace(",", ".");
+      } else if (s.includes(",") && !s.includes(".")) {
+        s = s.replace(",", ".");
+      }
+
+      const n = parseFloat(s);
+      return isNaN(n) ? null : n;
+    }
+
+    function formatNumber(n) {
+      if (n === null || n === undefined || isNaN(n)) return "";
+      return Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    }
+
+    function pctClass(pct) {
+      if (pct == null) return "";
+      if (pct >= 105) return "good";
+      if (pct >= 90)  return "medium";
+      return "bad";
+    }
+
+    function createRankingCard(m, ranking) {
       const card = document.createElement("div");
       card.className = "card";
-      card.id = `card-${cfg.key}`;
+      card.id = `card-${m.key}`;
 
       const header = document.createElement("div");
       header.className = "card-header";
@@ -569,15 +488,15 @@
 
       const title = document.createElement("div");
       title.className = "card-title";
-      title.textContent = cfg.label;
+      title.textContent = m.label;
       left.appendChild(title);
 
       const subtitle = document.createElement("div");
       subtitle.className = "card-subtitle";
       subtitle.textContent =
-        cfg.mode === "icred"
-          ? "Ranking por %Atg (bloco Icred 15/90)."
-          : "Ranking por %Atg Intradia (Nec. Dia > 0 no bloco deste mobilizador).";
+        m.mode === "icred"
+          ? "Ranking por %Atg no bloco Icred 15/90."
+          : "Ranking por %Atg Intradia (Nec. Dia > 0 apenas no bloco deste mobilizador).";
       left.appendChild(subtitle);
 
       const right = document.createElement("div");
@@ -590,15 +509,10 @@
         : "Sem linhas elegíveis";
       right.appendChild(count);
 
-      const cols = document.createElement("div");
-      cols.className = "badge";
-      cols.textContent = `Colunas ${colLetter(cfg.startCol)}–${colLetter(cfg.endCol)}`;
-      right.appendChild(cols);
-
       const btn = document.createElement("button");
       btn.className = "btn-png";
       btn.innerHTML = '<span class="icon">⬇</span><span>Baixar PNG</span>';
-      btn.onclick = () => downloadCardAsPNG(card, `ranking_${cfg.key}.png`);
+      btn.onclick = () => downloadCardAsPNG(card, `ranking_${m.key}.png`);
       right.appendChild(btn);
 
       header.appendChild(left);
@@ -616,13 +530,13 @@
 
       const table = document.createElement("table");
       const thead = document.createElement("thead");
-      const hr = document.createElement("tr");
+      const trh = document.createElement("tr");
       ["#", "Prefixo", "Agência", "Carteira", "Tipo", "Nec. Dia", "Rlz Dia", "% Atg"].forEach(h => {
         const th = document.createElement("th");
         th.textContent = h;
-        hr.appendChild(th);
+        trh.appendChild(th);
       });
-      thead.appendChild(hr);
+      thead.appendChild(trh);
       table.appendChild(thead);
 
       const tbody = document.createElement("tbody");
@@ -674,24 +588,12 @@
       const note = document.createElement("div");
       note.className = "small-note";
       note.textContent =
-        cfg.mode === "icred"
-          ? "Critério: %Atg no bloco Icred 15/90. Ordenado de maior para menor."
-          : "Critério: Nec. Dia > 0 no bloco; %Atg da planilha ou Rlz/Nec. Ordenado de maior para menor.";
+        m.mode === "icred"
+          ? "Critério: %Atg em Y. Ordenado de maior para menor."
+          : "Critério: Nec. Dia > 0 no bloco; %Atg da coluna ou Rlz/Nec. Ordenado de maior para menor.";
       card.appendChild(note);
 
       return card;
-    }
-
-    function colLetter(c) {
-      // c é índice 0-based
-      let n = c + 1;
-      let s = "";
-      while (n > 0) {
-        const r = (n - 1) % 26;
-        s = String.fromCharCode(65 + r) + s;
-        n = Math.floor((n - 1) / 26);
-      }
-      return s;
     }
 
     async function downloadCardAsPNG(cardEl, filename) {
