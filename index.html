@@ -912,167 +912,329 @@
                     return;
                 }
 
+                // Special handling for Desembolso PF - divide into 3 panels
+                if (mobilizadorName === 'Desembolso PF') {
+                    this.exportDesembolsoPFPanels(mobilizador);
+                } else {
+                    this.exportSinglePanel(mobilizadorName, mobilizador);
+                }
+            }
+
+            exportDesembolsoPFPanels(mobilizador) {
+                const totalRecords = mobilizador.data.length;
+                const recordsPerPanel = Math.ceil(totalRecords / 3);
+                
+                for (let i = 0; i < 3; i++) {
+                    const startIdx = i * recordsPerPanel;
+                    const endIdx = Math.min(startIdx + recordsPerPanel, totalRecords);
+                    
+                    if (startIdx >= totalRecords) break;
+                    
+                    const panelData = mobilizador.data.slice(startIdx, endIdx);
+                    this.createPFPanel(panelData, i + 1, startIdx, endIdx, totalRecords);
+                }
+                
+                this.showAlert('success', `3 painéis do Desembolso PF exportados com sucesso!`);
+            }
+
+            createPFPanel(data, panelNumber, startIdx, endIdx, totalRecords) {
                 const canvas = document.getElementById('exportCanvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Configure canvas size
-                const width = 1200;
-                const rowHeight = 35;
-                const headerHeight = 220;
-                const maxRows = Math.min(mobilizador.data.length, 30);
-                const height = headerHeight + (maxRows * rowHeight) + 120;
+                // Configure canvas size - narrower width
+                const width = 600; // 50% reduction from 1200
+                const rowHeight = 42; // Increased for better readability
+                const headerHeight = 200;
+                const rows = data.length;
+                const height = headerHeight + (rows * rowHeight) + 100;
                 
                 canvas.width = width;
                 canvas.height = height;
                 
-                // Draw background gradient
-                const gradient = ctx.createLinearGradient(0, 0, 0, height);
-                gradient.addColorStop(0, '#003366');
-                gradient.addColorStop(1, '#004080');
-                ctx.fillStyle = gradient;
+                // White background
+                ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, width, height);
                 
-                // Draw header background
-                ctx.fillStyle = 'rgba(0, 51, 102, 0.9)';
-                ctx.fillRect(30, 30, width - 60, 160);
+                // Header with BB blue
+                ctx.fillStyle = '#003366';
+                ctx.fillRect(0, 0, width, 140);
                 
-                // Add BB colors accent
+                // Yellow accent bar
                 ctx.fillStyle = '#FFCC00';
-                ctx.fillRect(30, 30, width - 60, 5);
+                ctx.fillRect(0, 140, width, 8);
                 
-                // Draw title
+                // Title - MUCH LARGER
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = 'bold 36px Segoe UI';
+                ctx.font = 'bold 42px Segoe UI';
                 ctx.textAlign = 'center';
-                ctx.fillText('RANKING DE MOBILIZADORES', width / 2, 80);
+                ctx.fillText('DESEMBOLSO PF', width / 2, 60);
                 
-                // Draw mobilizador name
-                ctx.font = '28px Segoe UI';
+                // Panel info
+                ctx.font = 'bold 24px Segoe UI';
                 ctx.fillStyle = '#FFCC00';
-                ctx.fillText(mobilizadorName, width / 2, 120);
+                ctx.fillText(`Painel ${panelNumber} de 3`, width / 2, 95);
                 
-                // Draw date and count
-                ctx.font = '18px Segoe UI';
-                ctx.fillStyle = '#B8C5D6';
-                const date = new Date().toLocaleDateString('pt-BR');
-                const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                ctx.fillText(`${date} às ${time} • ${mobilizador.data.length} registros`, width / 2, 155);
-                
-                // Draw table header
-                const tableY = 210;
-                ctx.fillStyle = 'rgba(74, 144, 226, 0.9)';
-                ctx.fillRect(30, tableY, width - 60, 45);
-                
+                // Date and records info
+                ctx.font = '16px Segoe UI';
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = 'bold 14px Segoe UI';
+                const date = new Date().toLocaleDateString('pt-BR');
+                ctx.fillText(`${date} • Registros ${startIdx + 1} a ${endIdx} de ${totalRecords}`, width / 2, 120);
+                
+                // Table header
+                const tableY = 165;
+                ctx.fillStyle = '#F0F0F0';
+                ctx.fillRect(20, tableY, width - 40, 35);
+                
+                // Table header text - LARGER FONTS
+                ctx.fillStyle = '#003366';
+                ctx.font = 'bold 16px Segoe UI';
                 ctx.textAlign = 'left';
-                ctx.fillText('POS', 50, tableY + 28);
-                ctx.fillText('PREFIXO', 120, tableY + 28);
-                ctx.fillText('DEPENDÊNCIA', 250, tableY + 28);
-                ctx.fillText('CARTEIRA', 550, tableY + 28);
+                ctx.fillText('PREFIXO', 30, tableY + 23);
+                ctx.fillText('DEPENDÊNCIA', 110, tableY + 23);
+                ctx.fillText('CART.', 320, tableY + 23);
                 
-                // Additional columns based on mobilizador type
-                if (mobilizadorName === 'Icred 15/90') {
-                    ctx.textAlign = 'right';
-                    ctx.fillText('% ATING', width - 50, tableY + 28);
-                } else {
-                    ctx.textAlign = 'right';
-                    ctx.fillText('ATING MÊS', 750, tableY + 28);
-                    ctx.fillText('NEC DIA', 880, tableY + 28);
-                    ctx.fillText('RLZ DIA', 990, tableY + 28);
-                    ctx.fillText('% ATING DIA', width - 50, tableY + 28);
-                }
+                ctx.textAlign = 'right';
+                ctx.font = 'bold 14px Segoe UI';
+                ctx.fillText('ATING', 420, tableY + 23);
+                ctx.fillText('NEC', 480, tableY + 23);
+                ctx.fillText('RLZ', 530, tableY + 23);
+                ctx.fillText('%DIA', width - 30, tableY + 23);
                 
-                // Draw table rows
-                let currentY = tableY + 45;
+                // Table rows
+                let currentY = tableY + 35;
                 
-                mobilizador.data.slice(0, maxRows).forEach((item, index) => {
-                    // Alternate row background
+                data.forEach((item, index) => {
+                    // Zebra striping with light colors
                     if (index % 2 === 0) {
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                        ctx.fillRect(30, currentY, width - 60, rowHeight);
+                        ctx.fillStyle = '#F8F9FA';
+                        ctx.fillRect(20, currentY, width - 40, rowHeight);
                     }
                     
-                    // Position with medals
-                    ctx.textAlign = 'left';
-                    if (index === 0) {
-                        ctx.font = 'bold 20px Segoe UI';
-                        ctx.fillStyle = '#FFD700';
-                        ctx.fillText('🥇', 45, currentY + 24);
-                    } else if (index === 1) {
-                        ctx.font = 'bold 20px Segoe UI';
-                        ctx.fillStyle = '#C0C0C0';
-                        ctx.fillText('🥈', 45, currentY + 24);
-                    } else if (index === 2) {
-                        ctx.font = 'bold 20px Segoe UI';
-                        ctx.fillStyle = '#CD7F32';
-                        ctx.fillText('🥉', 45, currentY + 24);
-                    } else {
-                        ctx.font = 'bold 14px Segoe UI';
-                        ctx.fillStyle = '#4A90E2';
-                        ctx.fillText(`${index + 1}º`, 50, currentY + 24);
-                    }
-                    
-                    // Data columns
-                    ctx.font = '13px Segoe UI';
-                    ctx.fillStyle = '#FFFFFF';
+                    // Row content - LARGER FONTS
+                    ctx.font = 'bold 15px Segoe UI';
+                    ctx.fillStyle = '#003366';
                     ctx.textAlign = 'left';
                     
                     // Prefixo
-                    ctx.fillText(item.prefixo, 120, currentY + 24);
+                    ctx.fillText(item.prefixo, 30, currentY + 28);
                     
-                    // Dependência (truncate if too long)
-                    const maxDepWidth = 280;
+                    // Dependência (truncated if needed)
+                    ctx.font = '14px Segoe UI';
+                    ctx.fillStyle = '#333333';
+                    const maxDepWidth = 200;
                     const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);
-                    ctx.fillText(truncatedDep, 250, currentY + 24);
+                    ctx.fillText(truncatedDep, 110, currentY + 28);
                     
                     // Carteira
-                    ctx.fillText(item.carteira, 550, currentY + 24);
+                    ctx.font = 'bold 14px Segoe UI';
+                    ctx.fillText(item.carteira, 320, currentY + 28);
                     
-                    // Numeric values
+                    // Numeric values with colors
+                    ctx.textAlign = 'right';
+                    
+                    // Ating Mês
+                    ctx.font = 'bold 14px Segoe UI';
+                    ctx.fillStyle = this.getLightExportColor(item.atingMes, true);
+                    ctx.fillText(this.formatCompact(item.atingMes, true), 420, currentY + 28);
+                    
+                    // Nec Dia
+                    ctx.font = '13px Segoe UI';
+                    ctx.fillStyle = '#666666';
+                    ctx.fillText(this.formatCompact(item.necDia), 480, currentY + 28);
+                    
+                    // Rlz Dia
+                    ctx.fillText(this.formatCompact(item.rlzDia), 530, currentY + 28);
+                    
+                    // % Ating Dia
+                    ctx.font = 'bold 14px Segoe UI';
+                    ctx.fillStyle = this.getLightExportColor(item.atingDia, true);
+                    ctx.fillText(this.formatCompact(item.atingDia, true), width - 30, currentY + 28);
+                    
+                    currentY += rowHeight;
+                });
+                
+                // Footer
+                ctx.fillStyle = '#003366';
+                ctx.fillRect(0, height - 40, width, 40);
+                
+                ctx.fillStyle = '#FFCC00';
+                ctx.font = 'bold 12px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText('Sistema de Rankings - Banco do Brasil', width / 2, height - 15);
+                
+                // Download
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
+                    a.download = `ranking_Desembolso_PF_Painel_${panelNumber}_${timestamp}.png`;
+                    a.href = url;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+            }
+
+            exportSinglePanel(mobilizadorName, mobilizador) {
+                const canvas = document.getElementById('exportCanvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Configure canvas size - narrower and condensed
+                const width = 650; // Reduced width
+                const rowHeight = 38; // Condensed height
+                const headerHeight = 180;
+                const rows = mobilizador.data.length;
+                const height = headerHeight + (rows * rowHeight) + 80;
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // White background
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Header with gradient
+                const gradient = ctx.createLinearGradient(0, 0, 0, 130);
+                gradient.addColorStop(0, '#003366');
+                gradient.addColorStop(1, '#004080');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, 130);
+                
+                // Yellow accent
+                ctx.fillStyle = '#FFCC00';
+                ctx.fillRect(0, 130, width, 6);
+                
+                // Title - LARGE FONT
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 38px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText(mobilizadorName.toUpperCase(), width / 2, 55);
+                
+                // Subtitle
+                ctx.font = '20px Segoe UI';
+                ctx.fillStyle = '#FFCC00';
+                ctx.fillText('RANKING DE MOBILIZADORES', width / 2, 85);
+                
+                // Date and count
+                ctx.font = '14px Segoe UI';
+                ctx.fillStyle = '#FFFFFF';
+                const date = new Date().toLocaleDateString('pt-BR');
+                ctx.fillText(`${date} • ${rows} registros`, width / 2, 110);
+                
+                // Table header
+                const tableY = 150;
+                ctx.fillStyle = '#F5F5F5';
+                ctx.fillRect(15, tableY, width - 30, 32);
+                
+                // Border for header
+                ctx.strokeStyle = '#003366';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(15, tableY, width - 30, 32);
+                
+                // Table headers - LARGER FONTS
+                ctx.fillStyle = '#003366';
+                ctx.font = 'bold 15px Segoe UI';
+                ctx.textAlign = 'left';
+                ctx.fillText('PREFIXO', 25, tableY + 21);
+                ctx.fillText('DEPENDÊNCIA', 100, tableY + 21);
+                ctx.fillText('CARTEIRA', 330, tableY + 21);
+                
+                if (mobilizadorName === 'Icred 15/90') {
+                    ctx.textAlign = 'right';
+                    ctx.fillText('% ATING', width - 25, tableY + 21);
+                } else {
+                    ctx.textAlign = 'right';
+                    ctx.font = 'bold 13px Segoe UI';
+                    ctx.fillText('ATING', 430, tableY + 21);
+                    ctx.fillText('NEC', 490, tableY + 21);
+                    ctx.fillText('RLZ', 545, tableY + 21);
+                    ctx.fillText('%DIA', width - 25, tableY + 21);
+                }
+                
+                // Table rows
+                let currentY = tableY + 32;
+                
+                mobilizador.data.forEach((item, index) => {
+                    // Alternating row colors
+                    if (index % 2 === 0) {
+                        ctx.fillStyle = '#FAFAFA';
+                        ctx.fillRect(15, currentY, width - 30, rowHeight);
+                    }
+                    
+                    // Row border bottom
+                    ctx.strokeStyle = '#E0E0E0';
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(15, currentY + rowHeight);
+                    ctx.lineTo(width - 15, currentY + rowHeight);
+                    ctx.stroke();
+                    
+                    // Data - LARGER FONTS
+                    ctx.font = 'bold 14px Segoe UI';
+                    ctx.fillStyle = '#003366';
+                    ctx.textAlign = 'left';
+                    
+                    // Prefixo
+                    ctx.fillText(item.prefixo, 25, currentY + 25);
+                    
+                    // Dependência
+                    ctx.font = '13px Segoe UI';
+                    ctx.fillStyle = '#444444';
+                    const maxDepWidth = 220;
+                    const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);
+                    ctx.fillText(truncatedDep, 100, currentY + 25);
+                    
+                    // Carteira
+                    ctx.font = 'bold 13px Segoe UI';
+                    ctx.fillStyle = '#003366';
+                    ctx.fillText(item.carteira, 330, currentY + 25);
+                    
+                    // Values
                     ctx.textAlign = 'right';
                     
                     if (mobilizadorName === 'Icred 15/90') {
-                        ctx.font = 'bold 14px Segoe UI';
-                        ctx.fillStyle = this.getExportColor(item.ating, true);
-                        ctx.fillText(this.formatValue(item.ating, true), width - 50, currentY + 24);
+                        ctx.font = 'bold 15px Segoe UI';
+                        ctx.fillStyle = this.getLightExportColor(item.ating, true);
+                        ctx.fillText(this.formatCompact(item.ating, true), width - 25, currentY + 25);
                     } else {
                         // Ating Mês
                         ctx.font = 'bold 13px Segoe UI';
-                        ctx.fillStyle = this.getExportColor(item.atingMes, true);
-                        ctx.fillText(this.formatValue(item.atingMes, true), 750, currentY + 24);
+                        ctx.fillStyle = this.getLightExportColor(item.atingMes, true);
+                        ctx.fillText(this.formatCompact(item.atingMes, true), 430, currentY + 25);
                         
-                        // Nec Dia
-                        ctx.font = '13px Segoe UI';
-                        ctx.fillStyle = '#B8C5D6';
-                        ctx.fillText(this.formatValue(item.necDia), 880, currentY + 24);
+                        // Nec Dia  
+                        ctx.font = '12px Segoe UI';
+                        ctx.fillStyle = '#666666';
+                        ctx.fillText(this.formatCompact(item.necDia), 490, currentY + 25);
                         
                         // Rlz Dia
-                        ctx.fillText(this.formatValue(item.rlzDia), 990, currentY + 24);
+                        ctx.fillText(this.formatCompact(item.rlzDia), 545, currentY + 25);
                         
                         // % Ating Dia
                         ctx.font = 'bold 13px Segoe UI';
-                        ctx.fillStyle = this.getExportColor(item.atingDia, true);
-                        ctx.fillText(this.formatValue(item.atingDia, true), width - 50, currentY + 24);
+                        ctx.fillStyle = this.getLightExportColor(item.atingDia, true);
+                        ctx.fillText(this.formatCompact(item.atingDia, true), width - 25, currentY + 25);
                     }
                     
                     currentY += rowHeight;
                 });
                 
-                // Draw footer
-                ctx.fillStyle = 'rgba(0, 51, 102, 0.9)';
-                ctx.fillRect(30, currentY + 30, width - 60, 50);
+                // Footer
+                const footerGradient = ctx.createLinearGradient(0, height - 50, 0, height);
+                footerGradient.addColorStop(0, '#004080');
+                footerGradient.addColorStop(1, '#003366');
+                ctx.fillStyle = footerGradient;
+                ctx.fillRect(0, height - 50, width, 50);
                 
-                // Footer BB accent
+                // Footer yellow line
                 ctx.fillStyle = '#FFCC00';
-                ctx.fillRect(30, currentY + 75, width - 60, 5);
+                ctx.fillRect(0, height - 50, width, 3);
                 
-                ctx.fillStyle = '#B8C5D6';
-                ctx.font = '14px Segoe UI';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '12px Segoe UI';
                 ctx.textAlign = 'center';
-                ctx.fillText('Sistema de Análise de Rankings - Banco do Brasil', width / 2, currentY + 58);
+                ctx.fillText('Sistema de Análise de Rankings - Banco do Brasil', width / 2, height - 20);
                 
-                // Download the image
+                // Download
                 canvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -1086,14 +1248,27 @@
                 });
             }
 
-            getExportColor(value, isPercentage) {
-                if (value === undefined || value === null) return '#B8C5D6';
+            getLightExportColor(value, isPercentage) {
+                if (value === undefined || value === null) return '#999999';
                 if (isPercentage) {
-                    if (value >= 100) return '#5CB85C';
-                    if (value >= 80) return '#F0AD4E';
-                    return '#D9534F';
+                    if (value >= 100) return '#28A745'; // Green
+                    if (value >= 80) return '#FFC107'; // Yellow/Orange  
+                    return '#DC3545'; // Red
                 }
-                return '#B8C5D6';
+                return '#666666';
+            }
+
+            formatCompact(value, isPercentage = false) {
+                if (value === undefined || value === null) return '-';
+                
+                // For large numbers, make them more compact
+                if (!isPercentage && value >= 1000) {
+                    const k = (value / 1000).toFixed(1).replace('.', ',');
+                    return k + 'k';
+                }
+                
+                const formatted = value.toFixed(1).replace('.', ',');
+                return isPercentage ? formatted + '%' : formatted;
             }
 
             truncateText(ctx, text, maxWidth) {
