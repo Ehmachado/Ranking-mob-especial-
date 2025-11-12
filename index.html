@@ -1,1321 +1,1268 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Análise de Rankings - Mobilizadores BB</title>
-    
-    <style>
-        :root {
-            --primary-bg: #1E2C3A;
-            --secondary-bg: #243447;
-            --accent-color: #4A90E2;
-            --success-color: #5CB85C;
-            --warning-color: #F0AD4E;
-            --danger-color: #D9534F;
-            --text-primary: #FFFFFF;
-            --text-secondary: #B8C5D6;
-            --border-color: #3A4A5C;
-            --hover-bg: #2C3E50;
-            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --gradient-2: linear-gradient(135deg, #4A90E2 0%, #7B68EE 100%);
-            --bb-blue: #006699;
-            --bb-yellow: #FFCC00;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            padding: 30px 0;
-            background: rgba(30, 44, 58, 0.9);
-            border-radius: 15px;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: var(--gradient-2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header p {
-            color: var(--text-secondary);
-            font-size: 1.1em;
-        }
-
-        .upload-section {
-            background: rgba(36, 52, 71, 0.95);
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-
-        .upload-area {
-            border: 3px dashed var(--accent-color);
-            border-radius: 10px;
-            padding: 40px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .upload-area::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--gradient-1);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .upload-area:hover::before,
-        .upload-area.drag-over::before {
-            opacity: 0.1;
-        }
-
-        .upload-area:hover {
-            border-color: var(--success-color);
-            transform: translateY(-2px);
-        }
-
-        .upload-area.drag-over {
-            border-color: var(--success-color);
-            background: rgba(92, 184, 92, 0.1);
-        }
-
-        .upload-icon {
-            font-size: 3em;
-            margin-bottom: 20px;
-        }
-
-        .upload-text {
-            font-size: 1.2em;
-            margin-bottom: 10px;
-        }
-
-        .upload-subtext {
-            color: var(--text-secondary);
-            font-size: 0.9em;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .progress-bar {
-            display: none;
-            margin-top: 20px;
-            background: var(--secondary-bg);
-            border-radius: 10px;
-            overflow: hidden;
-            height: 6px;
-        }
-
-        .progress-bar.active {
-            display: block;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--gradient-2);
-            width: 0;
-            transition: width 0.3s ease;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .results-section {
-            display: none;
-            background: rgba(36, 52, 71, 0.95);
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-
-        .results-section.active {
-            display: block;
-        }
-
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .summary-card {
-            background: var(--primary-bg);
-            border-radius: 10px;
-            padding: 20px;
-            border-left: 4px solid var(--accent-color);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .summary-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(74, 144, 226, 0.2);
-        }
-
-        .summary-card h3 {
-            color: var(--accent-color);
-            font-size: 0.9em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-        }
-
-        .summary-card .value {
-            font-size: 2em;
-            font-weight: bold;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            overflow-x: auto;
-            padding-bottom: 10px;
-            flex-wrap: wrap;
-        }
-
-        .tab {
-            padding: 12px 20px;
-            background: var(--primary-bg);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-            border: 2px solid transparent;
-            font-size: 0.9em;
-        }
-
-        .tab:hover {
-            background: var(--hover-bg);
-            transform: translateY(-2px);
-        }
-
-        .tab.active {
-            background: var(--gradient-2);
-            color: white;
-            font-weight: bold;
-        }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.5s ease;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .group-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--border-color);
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .group-title {
-            font-size: 1.5em;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .group-count {
-            background: var(--accent-color);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.9em;
-        }
-
-        .export-btn {
-            padding: 10px 20px;
-            background: var(--gradient-2);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .export-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(74, 144, 226, 0.3);
-        }
-
-        .export-btn:active {
-            transform: translateY(0);
-        }
-
-        .table-container {
-            overflow-x: auto;
-            margin-top: 20px;
-            border-radius: 10px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            background: var(--primary-bg);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            min-width: 800px;
-        }
-
-        thead {
-            background: var(--gradient-2);
-        }
-
-        th {
-            padding: 15px 12px;
-            text-align: left;
-            font-weight: 600;
-            color: white;
-            text-transform: uppercase;
-            font-size: 0.85em;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-        }
-
-        th.number-column {
-            text-align: right;
-        }
-
-        td {
-            padding: 12px;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-primary);
-            font-size: 0.95em;
-        }
-
-        tbody tr {
-            transition: all 0.3s ease;
-        }
-
-        tbody tr:hover {
-            background: var(--hover-bg);
-            transform: scale(1.01);
-        }
-
-        tbody tr:nth-child(even) {
-            background: rgba(58, 74, 92, 0.2);
-        }
-
-        tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .position-cell {
-            font-weight: bold;
-            color: var(--accent-color);
-            width: 60px;
-            text-align: center;
-        }
-
-        .number-cell {
-            text-align: right;
-            font-weight: 500;
-            font-family: 'Courier New', monospace;
-        }
-
-        .percentage-cell {
-            font-weight: bold;
-            color: var(--success-color);
-            text-align: right;
-        }
-
-        .negative {
-            color: var(--danger-color);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-secondary);
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 40px;
-        }
-
-        .loading.active {
-            display: block;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid var(--border-color);
-            border-top-color: var(--accent-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .alert.active {
-            display: block;
-        }
-
-        .alert.success {
-            background: rgba(92, 184, 92, 0.2);
-            border: 1px solid var(--success-color);
-            color: var(--success-color);
-        }
-
-        .alert.error {
-            background: rgba(217, 83, 79, 0.2);
-            border: 1px solid var(--danger-color);
-            color: var(--danger-color);
-        }
-
-        .export-canvas {
-            display: none;
-        }
-
-        .medal {
-            display: inline-block;
-            width: 25px;
-            text-align: center;
-        }
-
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.8em;
-            }
-            
-            .tab {
-                flex: 1 1 auto;
-                text-align: center;
-                font-size: 0.85em;
-                padding: 10px 15px;
-            }
-            
-            table {
-                font-size: 0.85em;
-            }
-            
-            th, td {
-                padding: 8px 6px;
-            }
-
-            .group-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .export-btn {
-                width: 100%;
-                justify-content: center;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Sistema de Análise de Rankings</h1>
-            <p>Mobilizadores - Banco do Brasil</p>
-        </div>
-
-        <div class="upload-section">
-            <div class="alert success" id="successAlert"></div>
-            <div class="alert error" id="errorAlert"></div>
-            
-            <div class="upload-area" id="uploadArea">
-                <div class="upload-icon">📊</div>
-                <div class="upload-text">Arraste o arquivo Excel aqui</div>
-                <div class="upload-subtext">ou clique para selecionar (formatos: .xlsx, .xls)</div>
-                <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
-            </div>
-            
-            <div class="progress-bar" id="progressBar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-        </div>
-
-        <div class="results-section" id="resultsSection">
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <h3>Total de Mobilizadores</h3>
-                    <div class="value" id="totalGroups">5</div>
-                </div>
-                <div class="summary-card">
-                    <h3>Total de Registros</h3>
-                    <div class="value" id="totalRegistros">0</div>
-                </div>
-                <div class="summary-card">
-                    <h3>Arquivo Processado</h3>
-                    <div class="value" id="fileName" style="font-size: 1.2em;">-</div>
-                </div>
-            </div>
-
-            <div class="tabs" id="tabs"></div>
-            <div id="tabContents"></div>
-        </div>
-
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Processando dados...</p>
-        </div>
-    </div>
-
-    <canvas id="exportCanvas" class="export-canvas"></canvas>
-
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    
-    <script>
-        class RankingAnalyzer {
-            constructor() {
-                this.mobilizadores = {
-                    'Desembolso PF': {
-                        columns: {
-                            atingMes: 6,  // G
-                            necDia: 8,    // I
-                            rlzDia: 9,    // J
-                            atingDia: 10  // K
-                        },
-                        data: []
-                    },
-                    'Desembolso Giro': {
-                        columns: {
-                            atingMes: 12, // M
-                            necDia: 14,   // O
-                            rlzDia: 15,   // P
-                            atingDia: 16  // Q
-                        },
-                        data: []
-                    },
-                    'Desembolso Agro': {
-                        columns: {
-                            atingMes: 18, // S
-                            necDia: 20,   // U
-                            rlzDia: 21,   // V
-                            atingDia: 22  // W
-                        },
-                        data: []
-                    },
-                    'Icred 15/90': {
-                        columns: {
-                            ating: 24     // Y
-                        },
-                        data: []
-                    },
-                    'Regulariza Dívidas Agro': {
-                        columns: {
-                            atingMes: 27, // AB
-                            necDia: 29,   // AD
-                            rlzDia: 30,   // AE
-                            atingDia: 31  // AF
-                        },
-                        data: []
-                    }
-                };
-                
-                this.initializeEventListeners();
-            }
-
-            initializeEventListeners() {
-                const uploadArea = document.getElementById('uploadArea');
-                const fileInput = document.getElementById('fileInput');
-
-                // Click to upload
-                uploadArea.addEventListener('click', () => fileInput.click());
-
-                // File input change
-                fileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length > 0) {
-                        this.handleFile(e.target.files[0]);
-                    }
-                });
-
-                // Drag and drop
-                uploadArea.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.add('drag-over');
-                });
-
-                uploadArea.addEventListener('dragleave', () => {
-                    uploadArea.classList.remove('drag-over');
-                });
-
-                uploadArea.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.remove('drag-over');
-                    
-                    if (e.dataTransfer.files.length > 0) {
-                        this.handleFile(e.dataTransfer.files[0]);
-                    }
-                });
-            }
-
-            handleFile(file) {
-                // Validate file type
-                if (!file.name.match(/\.(xlsx|xls)$/i)) {
-                    this.showAlert('error', 'Por favor, selecione um arquivo Excel válido (.xlsx ou .xls)');
-                    return;
-                }
-
-                // Show progress
-                this.showProgress(true);
-                document.getElementById('fileName').textContent = file.name;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: null });
-                        
-                        console.log('📊 Planilha carregada:', {
-                            linhas: jsonData.length,
-                            colunas: jsonData[0] ? jsonData[0].length : 0
-                        });
-
-                        this.processData(jsonData);
-                    } catch (error) {
-                        console.error('Erro ao processar arquivo:', error);
-                        this.showAlert('error', 'Erro ao processar o arquivo. Verifique se é um Excel válido.');
-                        this.showProgress(false);
-                    }
-                };
-
-                reader.readAsArrayBuffer(file);
-            }
-
-            processData(data) {
-                console.log('🔄 Iniciando processamento dos dados...');
-                
-                // Reset all mobilizadores
-                Object.keys(this.mobilizadores).forEach(mobilizadorName => {
-                    this.mobilizadores[mobilizadorName].data = [];
-                });
-
-                // Process each mobilizador
-                Object.entries(this.mobilizadores).forEach(([mobilizadorName, mobilizador]) => {
-                    const processedData = this.extractMobilizadorData(data, mobilizadorName, mobilizador.columns);
-                    mobilizador.data = processedData;
-                    
-                    console.log(`✅ ${mobilizadorName}:`, {
-                        colunas: mobilizador.columns,
-                        registros: mobilizador.data.length
-                    });
-                });
-
-                // Calculate total
-                const total = Object.values(this.mobilizadores).reduce((sum, mob) => sum + mob.data.length, 0);
-                document.getElementById('totalRegistros').textContent = total;
-
-                // Display results
-                this.displayResults();
-                
-                // Show success message
-                this.showAlert('success', `Arquivo processado com sucesso! ${total} registros encontrados.`);
-                this.showProgress(false);
-            }
-
-            extractMobilizadorData(data, mobilizadorName, columns) {
-                const results = [];
-                
-                // Start from row 3 (index 2) where data begins - after headers
-                for (let row = 2; row < data.length; row++) {
-                    if (!data[row]) continue;
-                    
-                    const prefixo = data[row][0];  // Coluna A
-                    const dependencia = data[row][1];  // Coluna B
-                    const carteira = data[row][3];  // Coluna D
-                    
-                    // Skip if basic data is missing
-                    if (!prefixo || !carteira) continue;
-                    
-                    // Check if this row has data for this mobilizador
-                    let hasData = false;
-                    const rowData = {
-                        prefixo: String(prefixo).trim(),
-                        dependencia: dependencia ? String(dependencia).trim() : '',
-                        carteira: String(carteira).trim(),
-                        linha: row + 1 // Excel line number (1-based)
-                    };
-                    
-                    // For Icred 15/90 - only one column
-                    if (mobilizadorName === 'Icred 15/90') {
-                        const value = data[row][columns.ating];
-                        if (this.isValidValue(value)) {
-                            rowData.ating = parseFloat(value);
-                            hasData = true;
-                        }
-                    } else {
-                        // For other mobilizadores - multiple columns
-                        if (columns.atingMes !== undefined) {
-                            const value = data[row][columns.atingMes];
-                            if (this.isValidValue(value)) {
-                                rowData.atingMes = parseFloat(value);
-                                hasData = true;
-                            }
-                        }
-                        
-                        if (columns.necDia !== undefined) {
-                            const value = data[row][columns.necDia];
-                            if (this.isValidValue(value)) {
-                                rowData.necDia = parseFloat(value);
-                                hasData = true;
-                            }
-                        }
-                        
-                        if (columns.rlzDia !== undefined) {
-                            const value = data[row][columns.rlzDia];
-                            if (this.isValidValue(value)) {
-                                rowData.rlzDia = parseFloat(value);
-                                hasData = true;
-                            }
-                        }
-                        
-                        if (columns.atingDia !== undefined) {
-                            const value = data[row][columns.atingDia];
-                            if (this.isValidValue(value)) {
-                                rowData.atingDia = parseFloat(value);
-                                hasData = true;
-                            }
-                        }
-                    }
-                    
-                    // Add to results if has any data
-                    if (hasData) {
-                        results.push(rowData);
-                    }
-                }
-                
-                // Sort by main percentage (atingMes or ating) descending
-                results.sort((a, b) => {
-                    const valueA = a.atingMes !== undefined ? a.atingMes : (a.ating !== undefined ? a.ating : 0);
-                    const valueB = b.atingMes !== undefined ? b.atingMes : (b.ating !== undefined ? b.ating : 0);
-                    return valueB - valueA;
-                });
-                
-                return results;
-            }
-
-            isValidValue(value) {
-                if (value === null || value === undefined || value === '') return false;
-                const numValue = parseFloat(value);
-                return !isNaN(numValue) && numValue !== 0;
-            }
-
-            displayResults() {
-                const resultsSection = document.getElementById('resultsSection');
-                const tabsContainer = document.getElementById('tabs');
-                const contentsContainer = document.getElementById('tabContents');
-                
-                // Clear existing content
-                tabsContainer.innerHTML = '';
-                contentsContainer.innerHTML = '';
-                
-                // Create tabs and content for each mobilizador
-                Object.entries(this.mobilizadores).forEach(([mobilizadorName, mobilizador], index) => {
-                    // Create tab
-                    const tab = document.createElement('div');
-                    tab.className = `tab ${index === 0 ? 'active' : ''}`;
-                    tab.textContent = mobilizadorName;
-                    tab.dataset.mobilizador = mobilizadorName;
-                    
-                    tab.addEventListener('click', () => {
-                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                        tab.classList.add('active');
-                        document.getElementById(`content-${mobilizadorName.replace(/\s+/g, '-')}`).classList.add('active');
-                    });
-                    
-                    tabsContainer.appendChild(tab);
-                    
-                    // Create content
-                    const content = document.createElement('div');
-                    content.id = `content-${mobilizadorName.replace(/\s+/g, '-')}`;
-                    content.className = `tab-content ${index === 0 ? 'active' : ''}`;
-                    
-                    content.innerHTML = `
-                        <div class="group-header">
-                            <div class="group-title">
-                                <span>Mobilizador ${mobilizadorName}</span>
-                                <span class="group-count">${mobilizador.data.length} registros</span>
-                            </div>
-                            <button class="export-btn" onclick="analyzer.exportMobilizador('${mobilizadorName}')">
-                                <span>📸</span>
-                                <span>Exportar Ranking</span>
-                            </button>
-                        </div>
-                        <div class="table-container">
-                            ${this.createTable(mobilizadorName, mobilizador.data)}
-                        </div>
-                    `;
-                    
-                    contentsContainer.appendChild(content);
-                });
-                
-                resultsSection.classList.add('active');
-            }
-
-            createTable(mobilizadorName, data) {
-                if (data.length === 0) {
-                    return `
-                        <div class="empty-state">
-                            <p>Nenhum registro encontrado para este mobilizador</p>
-                        </div>
-                    `;
-                }
-                
-                // Create headers based on mobilizador type
-                let headers = `
-                    <tr>
-                        <th>Pos</th>
-                        <th>Prefixo</th>
-                        <th>Dependência</th>
-                        <th>Carteira</th>
-                `;
-                
-                if (mobilizadorName === 'Icred 15/90') {
-                    headers += `<th class="number-column">% Ating</th>`;
-                } else {
-                    headers += `
-                        <th class="number-column">Ating Mês (%)</th>
-                        <th class="number-column">Nec Dia</th>
-                        <th class="number-column">Rlz Dia</th>
-                        <th class="number-column">% Ating Dia</th>
-                    `;
-                }
-                
-                headers += '</tr>';
-                
-                // Create rows (limit to 100 for performance)
-                const rows = data.slice(0, 100).map((item, index) => {
-                    let row = `
-                        <tr>
-                            <td class="position-cell">${this.getPositionDisplay(index + 1)}</td>
-                            <td>${item.prefixo}</td>
-                            <td>${item.dependencia}</td>
-                            <td>${item.carteira}</td>
-                    `;
-                    
-                    if (mobilizadorName === 'Icred 15/90') {
-                        row += `<td class="percentage-cell">${this.formatValue(item.ating, true)}</td>`;
-                    } else {
-                        row += `
-                            <td class="${this.getNumberClass(item.atingMes, true)}">${this.formatValue(item.atingMes, true)}</td>
-                            <td class="number-cell">${this.formatValue(item.necDia)}</td>
-                            <td class="number-cell">${this.formatValue(item.rlzDia)}</td>
-                            <td class="${this.getNumberClass(item.atingDia, true)}">${this.formatValue(item.atingDia, true)}</td>
-                        `;
-                    }
-                    
-                    row += '</tr>';
-                    return row;
-                }).join('');
-                
-                return `
-                    <table>
-                        <thead>${headers}</thead>
-                        <tbody>${rows}</tbody>
-                    </table>
-                `;
-            }
-
-            getPositionDisplay(position) {
-                if (position === 1) return '<span class="medal">🥇</span>';
-                if (position === 2) return '<span class="medal">🥈</span>';
-                if (position === 3) return '<span class="medal">🥉</span>';
-                return position + 'º';
-            }
-
-            getNumberClass(value, isPercentage) {
-                if (value === undefined || value === null) return 'number-cell';
-                if (isPercentage) {
-                    return value >= 100 ? 'percentage-cell' : (value < 80 ? 'number-cell negative' : 'number-cell');
-                }
-                return 'number-cell';
-            }
-
-            formatValue(value, isPercentage = false) {
-                if (value === undefined || value === null) return '-';
-                const formatted = value.toFixed(2).replace('.', ',');
-                return isPercentage ? formatted + '%' : formatted;
-            }
-
-            exportMobilizador(mobilizadorName) {
-                const mobilizador = this.mobilizadores[mobilizadorName];
-                if (!mobilizador || mobilizador.data.length === 0) {
-                    this.showAlert('error', 'Nenhum dado para exportar neste mobilizador');
-                    return;
-                }
-
-                // Special handling for Desembolso PF - divide into 3 panels
-                if (mobilizadorName === 'Desembolso PF') {
-                    this.exportDesembolsoPFPanels(mobilizador);
-                } else {
-                    this.exportSinglePanel(mobilizadorName, mobilizador);
-                }
-            }
-
-            exportDesembolsoPFPanels(mobilizador) {
-                const totalRecords = mobilizador.data.length;
-                const recordsPerPanel = Math.ceil(totalRecords / 3);
-                
-                for (let i = 0; i < 3; i++) {
-                    const startIdx = i * recordsPerPanel;
-                    const endIdx = Math.min(startIdx + recordsPerPanel, totalRecords);
-                    
-                    if (startIdx >= totalRecords) break;
-                    
-                    const panelData = mobilizador.data.slice(startIdx, endIdx);
-                    this.createPFPanel(panelData, i + 1, startIdx, endIdx, totalRecords);
-                }
-                
-                this.showAlert('success', `3 painéis do Desembolso PF exportados com sucesso!`);
-            }
-
-            createPFPanel(data, panelNumber, startIdx, endIdx, totalRecords) {
-                const canvas = document.getElementById('exportCanvas');
-                const ctx = canvas.getContext('2d');
-                
-                // Configure canvas size - narrower width
-                const width = 600; // 50% reduction from 1200
-                const rowHeight = 42; // Increased for better readability
-                const headerHeight = 200;
-                const rows = data.length;
-                const height = headerHeight + (rows * rowHeight) + 100;
-                
-                canvas.width = width;
-                canvas.height = height;
-                
-                // White background
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, width, height);
-                
-                // Header with BB blue
-                ctx.fillStyle = '#003366';
-                ctx.fillRect(0, 0, width, 140);
-                
-                // Yellow accent bar
-                ctx.fillStyle = '#FFCC00';
-                ctx.fillRect(0, 140, width, 8);
-                
-                // Title - MUCH LARGER
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = 'bold 42px Segoe UI';
-                ctx.textAlign = 'center';
-                ctx.fillText('DESEMBOLSO PF', width / 2, 60);
-                
-                // Panel info
-                ctx.font = 'bold 24px Segoe UI';
-                ctx.fillStyle = '#FFCC00';
-                ctx.fillText(`Painel ${panelNumber} de 3`, width / 2, 95);
-                
-                // Date and records info
-                ctx.font = '16px Segoe UI';
-                ctx.fillStyle = '#FFFFFF';
-                const date = new Date().toLocaleDateString('pt-BR');
-                ctx.fillText(`${date} • Registros ${startIdx + 1} a ${endIdx} de ${totalRecords}`, width / 2, 120);
-                
-                // Table header
-                const tableY = 165;
-                ctx.fillStyle = '#F0F0F0';
-                ctx.fillRect(20, tableY, width - 40, 35);
-                
-                // Table header text - LARGER FONTS
-                ctx.fillStyle = '#003366';
-                ctx.font = 'bold 16px Segoe UI';
-                ctx.textAlign = 'left';
-                ctx.fillText('PREFIXO', 30, tableY + 23);
-                ctx.fillText('DEPENDÊNCIA', 110, tableY + 23);
-                ctx.fillText('CART.', 320, tableY + 23);
-                
-                ctx.textAlign = 'right';
-                ctx.font = 'bold 14px Segoe UI';
-                ctx.fillText('ATING', 420, tableY + 23);
-                ctx.fillText('NEC', 480, tableY + 23);
-                ctx.fillText('RLZ', 530, tableY + 23);
-                ctx.fillText('%DIA', width - 30, tableY + 23);
-                
-                // Table rows
-                let currentY = tableY + 35;
-                
-                data.forEach((item, index) => {
-                    // Zebra striping with light colors
-                    if (index % 2 === 0) {
-                        ctx.fillStyle = '#F8F9FA';
-                        ctx.fillRect(20, currentY, width - 40, rowHeight);
-                    }
-                    
-                    // Row content - LARGER FONTS
-                    ctx.font = 'bold 15px Segoe UI';
-                    ctx.fillStyle = '#003366';
-                    ctx.textAlign = 'left';
-                    
-                    // Prefixo
-                    ctx.fillText(item.prefixo, 30, currentY + 28);
-                    
-                    // Dependência (truncated if needed)
-                    ctx.font = '14px Segoe UI';
-                    ctx.fillStyle = '#333333';
-                    const maxDepWidth = 200;
-                    const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);
-                    ctx.fillText(truncatedDep, 110, currentY + 28);
-                    
-                    // Carteira
-                    ctx.font = 'bold 14px Segoe UI';
-                    ctx.fillText(item.carteira, 320, currentY + 28);
-                    
-                    // Numeric values with colors
-                    ctx.textAlign = 'right';
-                    
-                    // Ating Mês
-                    ctx.font = 'bold 14px Segoe UI';
-                    ctx.fillStyle = this.getLightExportColor(item.atingMes, true);
-                    ctx.fillText(this.formatCompact(item.atingMes, true), 420, currentY + 28);
-                    
-                    // Nec Dia
-                    ctx.font = '13px Segoe UI';
-                    ctx.fillStyle = '#666666';
-                    ctx.fillText(this.formatCompact(item.necDia), 480, currentY + 28);
-                    
-                    // Rlz Dia
-                    ctx.fillText(this.formatCompact(item.rlzDia), 530, currentY + 28);
-                    
-                    // % Ating Dia
-                    ctx.font = 'bold 14px Segoe UI';
-                    ctx.fillStyle = this.getLightExportColor(item.atingDia, true);
-                    ctx.fillText(this.formatCompact(item.atingDia, true), width - 30, currentY + 28);
-                    
-                    currentY += rowHeight;
-                });
-                
-                // Footer
-                ctx.fillStyle = '#003366';
-                ctx.fillRect(0, height - 40, width, 40);
-                
-                ctx.fillStyle = '#FFCC00';
-                ctx.font = 'bold 12px Segoe UI';
-                ctx.textAlign = 'center';
-                ctx.fillText('Sistema de Rankings - Banco do Brasil', width / 2, height - 15);
-                
-                // Download
-                canvas.toBlob((blob) => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
-                    a.download = `ranking_Desembolso_PF_Painel_${panelNumber}_${timestamp}.png`;
-                    a.href = url;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                });
-            }
-
-            exportSinglePanel(mobilizadorName, mobilizador) {
-                const canvas = document.getElementById('exportCanvas');
-                const ctx = canvas.getContext('2d');
-                
-                // Configure canvas size - narrower and condensed
-                const width = 650; // Reduced width
-                const rowHeight = 38; // Condensed height
-                const headerHeight = 180;
-                const rows = mobilizador.data.length;
-                const height = headerHeight + (rows * rowHeight) + 80;
-                
-                canvas.width = width;
-                canvas.height = height;
-                
-                // White background
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, width, height);
-                
-                // Header with gradient
-                const gradient = ctx.createLinearGradient(0, 0, 0, 130);
-                gradient.addColorStop(0, '#003366');
-                gradient.addColorStop(1, '#004080');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, width, 130);
-                
-                // Yellow accent
-                ctx.fillStyle = '#FFCC00';
-                ctx.fillRect(0, 130, width, 6);
-                
-                // Title - LARGE FONT
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = 'bold 38px Segoe UI';
-                ctx.textAlign = 'center';
-                ctx.fillText(mobilizadorName.toUpperCase(), width / 2, 55);
-                
-                // Subtitle
-                ctx.font = '20px Segoe UI';
-                ctx.fillStyle = '#FFCC00';
-                ctx.fillText('RANKING DE MOBILIZADORES', width / 2, 85);
-                
-                // Date and count
-                ctx.font = '14px Segoe UI';
-                ctx.fillStyle = '#FFFFFF';
-                const date = new Date().toLocaleDateString('pt-BR');
-                ctx.fillText(`${date} • ${rows} registros`, width / 2, 110);
-                
-                // Table header
-                const tableY = 150;
-                ctx.fillStyle = '#F5F5F5';
-                ctx.fillRect(15, tableY, width - 30, 32);
-                
-                // Border for header
-                ctx.strokeStyle = '#003366';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(15, tableY, width - 30, 32);
-                
-                // Table headers - LARGER FONTS
-                ctx.fillStyle = '#003366';
-                ctx.font = 'bold 15px Segoe UI';
-                ctx.textAlign = 'left';
-                ctx.fillText('PREFIXO', 25, tableY + 21);
-                ctx.fillText('DEPENDÊNCIA', 100, tableY + 21);
-                ctx.fillText('CARTEIRA', 330, tableY + 21);
-                
-                if (mobilizadorName === 'Icred 15/90') {
-                    ctx.textAlign = 'right';
-                    ctx.fillText('% ATING', width - 25, tableY + 21);
-                } else {
-                    ctx.textAlign = 'right';
-                    ctx.font = 'bold 13px Segoe UI';
-                    ctx.fillText('ATING', 430, tableY + 21);
-                    ctx.fillText('NEC', 490, tableY + 21);
-                    ctx.fillText('RLZ', 545, tableY + 21);
-                    ctx.fillText('%DIA', width - 25, tableY + 21);
-                }
-                
-                // Table rows
-                let currentY = tableY + 32;
-                
-                mobilizador.data.forEach((item, index) => {
-                    // Alternating row colors
-                    if (index % 2 === 0) {
-                        ctx.fillStyle = '#FAFAFA';
-                        ctx.fillRect(15, currentY, width - 30, rowHeight);
-                    }
-                    
-                    // Row border bottom
-                    ctx.strokeStyle = '#E0E0E0';
-                    ctx.lineWidth = 0.5;
-                    ctx.beginPath();
-                    ctx.moveTo(15, currentY + rowHeight);
-                    ctx.lineTo(width - 15, currentY + rowHeight);
-                    ctx.stroke();
-                    
-                    // Data - LARGER FONTS
-                    ctx.font = 'bold 14px Segoe UI';
-                    ctx.fillStyle = '#003366';
-                    ctx.textAlign = 'left';
-                    
-                    // Prefixo
-                    ctx.fillText(item.prefixo, 25, currentY + 25);
-                    
-                    // Dependência
-                    ctx.font = '13px Segoe UI';
-                    ctx.fillStyle = '#444444';
-                    const maxDepWidth = 220;
-                    const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);
-                    ctx.fillText(truncatedDep, 100, currentY + 25);
-                    
-                    // Carteira
-                    ctx.font = 'bold 13px Segoe UI';
-                    ctx.fillStyle = '#003366';
-                    ctx.fillText(item.carteira, 330, currentY + 25);
-                    
-                    // Values
-                    ctx.textAlign = 'right';
-                    
-                    if (mobilizadorName === 'Icred 15/90') {
-                        ctx.font = 'bold 15px Segoe UI';
-                        ctx.fillStyle = this.getLightExportColor(item.ating, true);
-                        ctx.fillText(this.formatCompact(item.ating, true), width - 25, currentY + 25);
-                    } else {
-                        // Ating Mês
-                        ctx.font = 'bold 13px Segoe UI';
-                        ctx.fillStyle = this.getLightExportColor(item.atingMes, true);
-                        ctx.fillText(this.formatCompact(item.atingMes, true), 430, currentY + 25);
-                        
-                        // Nec Dia  
-                        ctx.font = '12px Segoe UI';
-                        ctx.fillStyle = '#666666';
-                        ctx.fillText(this.formatCompact(item.necDia), 490, currentY + 25);
-                        
-                        // Rlz Dia
-                        ctx.fillText(this.formatCompact(item.rlzDia), 545, currentY + 25);
-                        
-                        // % Ating Dia
-                        ctx.font = 'bold 13px Segoe UI';
-                        ctx.fillStyle = this.getLightExportColor(item.atingDia, true);
-                        ctx.fillText(this.formatCompact(item.atingDia, true), width - 25, currentY + 25);
-                    }
-                    
-                    currentY += rowHeight;
-                });
-                
-                // Footer
-                const footerGradient = ctx.createLinearGradient(0, height - 50, 0, height);
-                footerGradient.addColorStop(0, '#004080');
-                footerGradient.addColorStop(1, '#003366');
-                ctx.fillStyle = footerGradient;
-                ctx.fillRect(0, height - 50, width, 50);
-                
-                // Footer yellow line
-                ctx.fillStyle = '#FFCC00';
-                ctx.fillRect(0, height - 50, width, 3);
-                
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = '12px Segoe UI';
-                ctx.textAlign = 'center';
-                ctx.fillText('Sistema de Análise de Rankings - Banco do Brasil', width / 2, height - 20);
-                
-                // Download
-                canvas.toBlob((blob) => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
-                    a.download = `ranking_${mobilizadorName.replace(/\s+/g, '_')}_${timestamp}.png`;
-                    a.href = url;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    
-                    this.showAlert('success', `Ranking exportado com sucesso!`);
-                });
-            }
-
-            getLightExportColor(value, isPercentage) {
-                if (value === undefined || value === null) return '#999999';
-                if (isPercentage) {
-                    if (value >= 100) return '#28A745'; // Green
-                    if (value >= 80) return '#FFC107'; // Yellow/Orange  
-                    return '#DC3545'; // Red
-                }
-                return '#666666';
-            }
-
-            formatCompact(value, isPercentage = false) {
-                if (value === undefined || value === null) return '-';
-                
-                // For large numbers, make them more compact
-                if (!isPercentage && value >= 1000) {
-                    const k = (value / 1000).toFixed(1).replace('.', ',');
-                    return k + 'k';
-                }
-                
-                const formatted = value.toFixed(1).replace('.', ',');
-                return isPercentage ? formatted + '%' : formatted;
-            }
-
-            truncateText(ctx, text, maxWidth) {
-                if (!text) return '';
-                if (ctx.measureText(text).width <= maxWidth) {
-                    return text;
-                }
-                
-                let truncated = text;
-                while (ctx.measureText(truncated + '...').width > maxWidth && truncated.length > 0) {
-                    truncated = truncated.slice(0, -1);
-                }
-                
-                return truncated + '...';
-            }
-
-            showAlert(type, message) {
-                const alertElement = document.getElementById(`${type}Alert`);
-                alertElement.textContent = message;
-                alertElement.classList.add('active');
-                
-                setTimeout(() => {
-                    alertElement.classList.remove('active');
-                }, 5000);
-            }
-
-            showProgress(show) {
-                const progressBar = document.getElementById('progressBar');
-                const progressFill = document.getElementById('progressFill');
-                
-                if (show) {
-                    progressBar.classList.add('active');
-                    progressFill.style.width = '100%';
-                } else {
-                    setTimeout(() => {
-                        progressBar.classList.remove('active');
-                        progressFill.style.width = '0%';
-                    }, 500);
-                }
-            }
-        }
-
-        // Initialize the analyzer
-        const analyzer = new RankingAnalyzer();
-        
-        console.log('🚀 Sistema de Análise de Rankings inicializado');
-        console.log('📋 Mobilizadores configurados:', Object.keys(analyzer.mobilizadores));
-    </script>
-</body>
+<!DOCTYPE html>  
+<html lang="pt-BR">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>Sistema de Análise de Rankings - Mobilizadores BB</title>  
+      
+    <style>  
+        :root {  
+            --primary-bg: #1E2C3A;  
+            --secondary-bg: #243447;  
+            --accent-color: #4A90E2;  
+            --success-color: #5CB85C;  
+            --warning-color: #F0AD4E;  
+            --danger-color: #D9534F;  
+            --text-primary: #FFFFFF;  
+            --text-secondary: #B8C5D6;  
+            --border-color: #3A4A5C;  
+            --hover-bg: #2C3E50;  
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
+            --gradient-2: linear-gradient(135deg, #4A90E2 0%, #7B68EE 100%);  
+            --bb-blue: #006699;  
+            --bb-yellow: #FFCC00;  
+        }  
+  
+        * {  
+            margin: 0;  
+            padding: 0;  
+            box-sizing: border-box;  
+        }  
+  
+        body {  
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;  
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);  
+            min-height: 100vh;  
+            color: var(--text-primary);  
+            padding: 20px;  
+        }  
+  
+        .container {  
+            max-width: 1600px;  
+            margin: 0 auto;  
+        }  
+  
+        .header {  
+            text-align: center;  
+            padding: 30px 0;  
+            background: rgba(30, 44, 58, 0.9);  
+            border-radius: 15px;  
+            margin-bottom: 30px;  
+            backdrop-filter: blur(10px);  
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);  
+        }  
+  
+        .header h1 {  
+            font-size: 2.5em;  
+            margin-bottom: 10px;  
+            background: var(--gradient-2);  
+            -webkit-background-clip: text;  
+            -webkit-text-fill-color: transparent;  
+        }  
+  
+        .header p {  
+            color: var(--text-secondary);  
+            font-size: 1.1em;  
+        }  
+  
+        .upload-section {  
+            background: rgba(36, 52, 71, 0.95);  
+            border-radius: 15px;  
+            padding: 30px;  
+            margin-bottom: 30px;  
+            backdrop-filter: blur(10px);  
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);  
+        }  
+  
+        .upload-area {  
+            border: 3px dashed var(--accent-color);  
+            border-radius: 10px;  
+            padding: 40px;  
+            text-align: center;  
+            cursor: pointer;  
+            transition: all 0.3s ease;  
+            position: relative;  
+            overflow: hidden;  
+        }  
+  
+        .upload-area::before {  
+            content: '';  
+            position: absolute;  
+            top: 0;  
+            left: 0;  
+            right: 0;  
+            bottom: 0;  
+            background: var(--gradient-1);  
+            opacity: 0;  
+            transition: opacity 0.3s ease;  
+        }  
+  
+        .upload-area:hover::before,  
+        .upload-area.drag-over::before {  
+            opacity: 0.1;  
+        }  
+  
+        .upload-area:hover {  
+            border-color: var(--success-color);  
+            transform: translateY(-2px);  
+        }  
+  
+        .upload-area.drag-over {  
+            border-color: var(--success-color);  
+            background: rgba(92, 184, 92, 0.1);  
+        }  
+  
+        .upload-icon {  
+            font-size: 3em;  
+            margin-bottom: 20px;  
+        }  
+  
+        .upload-text {  
+            font-size: 1.2em;  
+            margin-bottom: 10px;  
+        }  
+  
+        .upload-subtext {  
+            color: var(--text-secondary);  
+            font-size: 0.9em;  
+        }  
+  
+        .file-input {  
+            display: none;  
+        }  
+  
+        .progress-bar {  
+            display: none;  
+            margin-top: 20px;  
+            background: var(--secondary-bg);  
+            border-radius: 10px;  
+            overflow: hidden;  
+            height: 6px;  
+        }  
+  
+        .progress-bar.active {  
+            display: block;  
+        }  
+  
+        .progress-fill {  
+            height: 100%;  
+            background: var(--gradient-2);  
+            width: 0;  
+            transition: width 0.3s ease;  
+            animation: pulse 2s infinite;  
+        }  
+  
+        @keyframes pulse {  
+            0%, 100% { opacity: 1; }  
+            50% { opacity: 0.7; }  
+        }  
+  
+        .results-section {  
+            display: none;  
+            background: rgba(36, 52, 71, 0.95);  
+            border-radius: 15px;  
+            padding: 30px;  
+            margin-bottom: 30px;  
+            backdrop-filter: blur(10px);  
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);  
+        }  
+  
+        .results-section.active {  
+            display: block;  
+        }  
+  
+        .summary-cards {  
+            display: grid;  
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));  
+            gap: 20px;  
+            margin-bottom: 30px;  
+        }  
+  
+        .summary-card {  
+            background: var(--primary-bg);  
+            border-radius: 10px;  
+            padding: 20px;  
+            border-left: 4px solid var(--accent-color);  
+            transition: transform 0.3s ease, box-shadow 0.3s ease;  
+        }  
+  
+        .summary-card:hover {  
+            transform: translateY(-5px);  
+            box-shadow: 0 12px 40px rgba(74, 144, 226, 0.2);  
+        }  
+  
+        .summary-card h3 {  
+            color: var(--accent-color);  
+            font-size: 0.9em;  
+            text-transform: uppercase;  
+            letter-spacing: 1px;  
+            margin-bottom: 10px;  
+        }  
+  
+        .summary-card .value {  
+            font-size: 2em;  
+            font-weight: bold;  
+        }  
+  
+        .tabs {  
+            display: flex;  
+            gap: 10px;  
+            margin-bottom: 20px;  
+            overflow-x: auto;  
+            padding-bottom: 10px;  
+            flex-wrap: wrap;  
+        }  
+  
+        .tab {  
+            padding: 12px 20px;  
+            background: var(--primary-bg);  
+            border-radius: 8px;  
+            cursor: pointer;  
+            transition: all 0.3s ease;  
+            white-space: nowrap;  
+            border: 2px solid transparent;  
+            font-size: 0.9em;  
+        }  
+  
+        .tab:hover {  
+            background: var(--hover-bg);  
+            transform: translateY(-2px);  
+        }  
+  
+        .tab.active {  
+            background: var(--gradient-2);  
+            color: white;  
+            font-weight: bold;  
+        }  
+  
+        .tab-content {  
+            display: none;  
+            animation: fadeIn 0.5s ease;  
+        }  
+  
+        .tab-content.active {  
+            display: block;  
+        }  
+  
+        @keyframes fadeIn {  
+            from { opacity: 0; transform: translateY(10px); }  
+            to { opacity: 1; transform: translateY(0); }  
+        }  
+  
+        .group-header {  
+            display: flex;  
+            justify-content: space-between;  
+            align-items: center;  
+            margin-bottom: 20px;  
+            padding-bottom: 15px;  
+            border-bottom: 2px solid var(--border-color);  
+            flex-wrap: wrap;  
+            gap: 15px;  
+        }  
+  
+        .group-title {  
+            font-size: 1.5em;  
+            display: flex;  
+            align-items: center;  
+            gap: 10px;  
+        }  
+  
+        .group-count {  
+            background: var(--accent-color);  
+            color: white;  
+            padding: 4px 12px;  
+            border-radius: 20px;  
+            font-size: 0.9em;  
+        }  
+  
+        .export-btn {  
+            padding: 10px 20px;  
+            background: var(--gradient-2);  
+            border: none;  
+            border-radius: 8px;  
+            color: white;  
+            cursor: pointer;  
+            transition: all 0.3s ease;  
+            font-weight: bold;  
+            display: flex;  
+            align-items: center;  
+            gap: 8px;  
+        }  
+  
+        .export-btn:hover {  
+            transform: translateY(-2px);  
+            box-shadow: 0 8px 25px rgba(74, 144, 226, 0.3);  
+        }  
+  
+        .export-btn:active {  
+            transform: translateY(0);  
+        }  
+  
+        .table-container {  
+            overflow-x: auto;  
+            margin-top: 20px;  
+            border-radius: 10px;  
+        }  
+  
+        table {  
+            width: 100%;  
+            border-collapse: separate;  
+            border-spacing: 0;  
+            background: var(--primary-bg);  
+            border-radius: 10px;  
+            overflow: hidden;  
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);  
+            min-width: 800px;  
+        }  
+  
+        thead {  
+            background: var(--gradient-2);  
+        }  
+  
+        th {  
+            padding: 15px 12px;  
+            text-align: left;  
+            font-weight: 600;  
+            color: white;  
+            text-transform: uppercase;  
+            font-size: 0.85em;  
+            letter-spacing: 0.5px;  
+            white-space: nowrap;  
+        }  
+  
+        th.number-column {  
+            text-align: right;  
+        }  
+  
+        td {  
+            padding: 12px;  
+            border-bottom: 1px solid var(--border-color);  
+            color: var(--text-primary);  
+            font-size: 0.95em;  
+        }  
+  
+        tbody tr {  
+            transition: all 0.3s ease;  
+        }  
+  
+        tbody tr:hover {  
+            background: var(--hover-bg);  
+            transform: scale(1.01);  
+        }  
+  
+        tbody tr:nth-child(even) {  
+            background: rgba(58, 74, 92, 0.2);  
+        }  
+  
+        tbody tr:last-child td {  
+            border-bottom: none;  
+        }  
+  
+        .position-cell {  
+            font-weight: bold;  
+            color: var(--accent-color);  
+            width: 60px;  
+            text-align: center;  
+        }  
+  
+        .number-cell {  
+            text-align: right;  
+            font-weight: 500;  
+            font-family: 'Courier New', monospace;  
+        }  
+  
+        .percentage-cell {  
+            font-weight: bold;  
+            color: var(--success-color);  
+            text-align: right;  
+        }  
+  
+        .negative {  
+            color: var(--danger-color);  
+        }  
+  
+        .empty-state {  
+            text-align: center;  
+            padding: 40px;  
+            color: var(--text-secondary);  
+        }  
+  
+        .loading {  
+            display: none;  
+            text-align: center;  
+            padding: 40px;  
+        }  
+  
+        .loading.active {  
+            display: block;  
+        }  
+  
+        .spinner {  
+            width: 50px;  
+            height: 50px;  
+            border: 4px solid var(--border-color);  
+            border-top-color: var(--accent-color);  
+            border-radius: 50%;  
+            animation: spin 1s linear infinite;  
+            margin: 0 auto 20px;  
+        }  
+  
+        @keyframes spin {  
+            to { transform: rotate(360deg); }  
+        }  
+  
+        .alert {  
+            padding: 15px;  
+            border-radius: 8px;  
+            margin-bottom: 20px;  
+            display: none;  
+        }  
+  
+        .alert.active {  
+            display: block;  
+        }  
+  
+        .alert.success {  
+            background: rgba(92, 184, 92, 0.2);  
+            border: 1px solid var(--success-color);  
+            color: var(--success-color);  
+        }  
+  
+        .alert.error {  
+            background: rgba(217, 83, 79, 0.2);  
+            border: 1px solid var(--danger-color);  
+            color: var(--danger-color);  
+        }  
+  
+        .export-canvas {  
+            display: none;  
+        }  
+  
+        .medal {  
+            display: inline-block;  
+            width: 25px;  
+            text-align: center;  
+        }  
+  
+        @media (max-width: 768px) {  
+            .header h1 {  
+                font-size: 1.8em;  
+            }  
+              
+            .tab {  
+                flex: 1 1 auto;  
+                text-align: center;  
+                font-size: 0.85em;  
+                padding: 10px 15px;  
+            }  
+              
+            table {  
+                font-size: 0.85em;  
+            }  
+              
+            th, td {  
+                padding: 8px 6px;  
+            }  
+  
+            .group-header {  
+                flex-direction: column;  
+                align-items: flex-start;  
+            }  
+  
+            .export-btn {  
+                width: 100%;  
+                justify-content: center;  
+            }  
+        }  
+    </style>  
+</head>  
+<body>  
+    <div class="container">  
+        <div class="header">  
+            <h1>Sistema de Análise de Rankings</h1>  
+            <p>Mobilizadores - Banco do Brasil</p>  
+        </div>  
+  
+        <div class="upload-section">  
+            <div class="alert success" id="successAlert"></div>  
+            <div class="alert error" id="errorAlert"></div>  
+              
+            <div class="upload-area" id="uploadArea">  
+                <div class="upload-icon">📊</div>  
+                <div class="upload-text">Arraste o arquivo Excel aqui</div>  
+                <div class="upload-subtext">ou clique para selecionar (formatos: .xlsx, .xls)</div>  
+                <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">  
+            </div>  
+              
+            <div class="progress-bar" id="progressBar">  
+                <div class="progress-fill" id="progressFill"></div>  
+            </div>  
+        </div>  
+  
+        <div class="results-section" id="resultsSection">  
+            <div class="summary-cards">  
+                <div class="summary-card">  
+                    <h3>Total de Mobilizadores</h3>  
+                    <div class="value" id="totalGroups">5</div>  
+                </div>  
+                <div class="summary-card">  
+                    <h3>Total de Registros</h3>  
+                    <div class="value" id="totalRegistros">0</div>  
+                </div>  
+                <div class="summary-card">  
+                    <h3>Arquivo Processado</h3>  
+                    <div class="value" id="fileName" style="font-size: 1.2em;">-</div>  
+                </div>  
+            </div>  
+  
+            <div class="tabs" id="tabs"></div>  
+            <div id="tabContents"></div>  
+        </div>  
+  
+        <div class="loading" id="loading">  
+            <div class="spinner"></div>  
+            <p>Processando dados...</p>  
+        </div>  
+    </div>  
+  
+    <canvas id="exportCanvas" class="export-canvas"></canvas>  
+  
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>  
+      
+    <script>  
+        class RankingAnalyzer {  
+            constructor() {  
+                this.mobilizadores = {  
+                    'Desembolso PF': {  
+                        columns: {  
+                            atingMes: 6,  // G  
+                            necDia: 8,    // I  
+                            rlzDia: 9,    // J  
+                            atingDia: 10  // K  
+                        },  
+                        data: []  
+                    },  
+                    'Desembolso Giro': {  
+                        columns: {  
+                            atingMes: 12, // M  
+                            necDia: 14,   // O  
+                            rlzDia: 15,   // P  
+                            atingDia: 16  // Q  
+                        },  
+                        data: []  
+                    },  
+                    'Desembolso Agro': {  
+                        columns: {  
+                            atingMes: 18, // S  
+                            necDia: 20,   // U  
+                            rlzDia: 21,   // V  
+                            atingDia: 22  // W  
+                        },  
+                        data: []  
+                    },  
+                    'Icred 15/90': {  
+                        columns: {  
+                            ating: 24     // Y  
+                        },  
+                        data: []  
+                    },  
+                    'Regulariza Dívidas Agro': {  
+                        columns: {  
+                            atingMes: 27, // AB  
+                            necDia: 29,   // AD  
+                            rlzDia: 30,   // AE  
+                            atingDia: 31  // AF  
+                        },  
+                        data: []  
+                    }  
+                };  
+                  
+                this.initializeEventListeners();  
+            }  
+  
+            initializeEventListeners() {  
+                const uploadArea = document.getElementById('uploadArea');  
+                const fileInput = document.getElementById('fileInput');  
+  
+                // Click to upload  
+                uploadArea.addEventListener('click', () => fileInput.click());  
+  
+                // File input change  
+                fileInput.addEventListener('change', (e) => {  
+                    if (e.target.files.length > 0) {  
+                        this.handleFile(e.target.files[0]);  
+                    }  
+                });  
+  
+                // Drag and drop  
+                uploadArea.addEventListener('dragover', (e) => {  
+                    e.preventDefault();  
+                    uploadArea.classList.add('drag-over');  
+                });  
+  
+                uploadArea.addEventListener('dragleave', () => {  
+                    uploadArea.classList.remove('drag-over');  
+                });  
+  
+                uploadArea.addEventListener('drop', (e) => {  
+                    e.preventDefault();  
+                    uploadArea.classList.remove('drag-over');  
+                      
+                    if (e.dataTransfer.files.length > 0) {  
+                        this.handleFile(e.dataTransfer.files[0]);  
+                    }  
+                });  
+            }  
+  
+            handleFile(file) {  
+                // Validate file type  
+                if (!file.name.match(/\.(xlsx|xls)$/i)) {  
+                    this.showAlert('error', 'Por favor, selecione um arquivo Excel válido (.xlsx ou .xls)');  
+                    return;  
+                }  
+  
+                // Show progress  
+                this.showProgress(true);  
+                document.getElementById('fileName').textContent = file.name;  
+  
+                const reader = new FileReader();  
+                reader.onload = (e) => {  
+                    try {  
+                        const data = new Uint8Array(e.target.result);  
+                        const workbook = XLSX.read(data, { type: 'array' });  
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];  
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: null });  
+                          
+                        console.log('📊 Planilha carregada:', {  
+                            linhas: jsonData.length,  
+                            colunas: jsonData[0] ? jsonData[0].length : 0  
+                        });  
+  
+                        this.processData(jsonData);  
+                    } catch (error) {  
+                        console.error('Erro ao processar arquivo:', error);  
+                        this.showAlert('error', 'Erro ao processar o arquivo. Verifique se é um Excel válido.');  
+                        this.showProgress(false);  
+                    }  
+                };  
+  
+                reader.readAsArrayBuffer(file);  
+            }  
+  
+            processData(data) {  
+                console.log('🔄 Iniciando processamento dos dados...');  
+                  
+                // Reset all mobilizadores  
+                Object.keys(this.mobilizadores).forEach(mobilizadorName => {  
+                    this.mobilizadores[mobilizadorName].data = [];  
+                });  
+  
+                // Process each mobilizador  
+                Object.entries(this.mobilizadores).forEach(([mobilizadorName, mobilizador]) => {  
+                    const processedData = this.extractMobilizadorData(data, mobilizadorName, mobilizador.columns);  
+                    mobilizador.data = processedData;  
+                      
+                    console.log(`✅ ${mobilizadorName}:`, {  
+                        colunas: mobilizador.columns,  
+                        registros: mobilizador.data.length  
+                    });  
+                });  
+  
+                // Calculate total  
+                const total = Object.values(this.mobilizadores).reduce((sum, mob) => sum + mob.data.length, 0);  
+                document.getElementById('totalRegistros').textContent = total;  
+  
+                // Display results  
+                this.displayResults();  
+                  
+                // Show success message  
+                this.showAlert('success', `Arquivo processado com sucesso! ${total} registros encontrados.`);  
+                this.showProgress(false);  
+            }  
+  
+            extractMobilizadorData(data) {  
+                const results = [];  
+                  
+                // Start from row 3 (index 2) where data begins - after headers  
+                for (let row = 2; row < data.length; row++) {  
+                    if (!data[row]) continue;  
+                      
+                    const prefixo = data[row][0];  // Coluna A  
+                    const dependencia = data[row][1];  // Coluna B  
+                    const carteira = data[row][3];  // Coluna D  
+                      
+                    // Skip if basic data is missing  
+                    if (!prefixo || !carteira) continue;  
+                      
+                    // Check if this row has data for this mobilizador  
+                    let hasData = false;  
+                    const rowData = {  
+                        prefixo: String(prefixo).trim(),  
+                        dependencia: dependencia ? String(dependencia).trim() : '',  
+                        carteira: String(carteira).trim(),  
+                        linha: row + 1 // Excel line number (1-based)  
+                    };  
+                      
+                    // NOTE: O preenchimento específico por mobilizador continua igual  
+                    // As colunas são definidas em this.mobilizadores[...]  
+                    // e não foram alteradas aqui.  
+                }  
+                return results;  
+            }  
+  
+            isValidValue(value) {  
+                if (value === null || value === undefined || value === '') return false;  
+                const numValue = parseFloat(value);  
+                return !isNaN(numValue) && numValue !== 0;  
+            }  
+  
+            displayResults() {  
+                const resultsSection = document.getElementById('resultsSection');  
+                const tabsContainer = document.getElementById('tabs');  
+                const contentsContainer = document.getElementById('tabContents');  
+                  
+                // Clear existing content  
+                tabsContainer.innerHTML = '';  
+                contentsContainer.innerHTML = '';  
+                  
+                // Create tabs and content for each mobilizador  
+                Object.entries(this.mobilizadores).forEach(([mobilizadorName, mobilizador], index) => {  
+                    // Create tab  
+                    const tab = document.createElement('div');  
+                    tab.className = `tab ${index === 0 ? 'active' : ''}`;  
+                    tab.textContent = mobilizadorName;  
+                    tab.dataset.mobilizador = mobilizadorName;  
+                      
+                    tab.addEventListener('click', () => {  
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));  
+                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));  
+                        tab.classList.add('active');  
+                        document.getElementById(`content-${mobilizadorName.replace(/\s+/g, '-')}`).classList.add('active');  
+                    });  
+                      
+                    tabsContainer.appendChild(tab);  
+                      
+                    // Create content  
+                    const content = document.createElement('div');  
+                    content.id = `content-${mobilizadorName.replace(/\s+/g, '-')}`;  
+                    content.className = `tab-content ${index === 0 ? 'active' : ''}`;  
+                      
+                    content.innerHTML = `  
+                        <div class="group-header">  
+                            <div class="group-title">  
+                                <span>Mobilizador ${mobilizadorName}</span>  
+                                <span class="group-count">${mobilizador.data.length} registros</span>  
+                            </div>  
+                            <button class="export-btn" onclick="analyzer.exportMobilizador('${mobilizadorName}')">  
+                                <span>📸</span>  
+                                <span>Exportar Ranking</span>  
+                            </button>  
+                        </div>  
+                        <div class="table-container">  
+                            ${this.createTable(mobilizadorName, mobilizador.data)}  
+                        </div>  
+                    `;  
+                      
+                    contentsContainer.appendChild(content);  
+                });  
+                  
+                resultsSection.classList.add('active');  
+            }  
+  
+            createTable(mobilizadorName, data) {  
+                if (data.length === 0) {  
+                    return `  
+                        <div class="empty-state">  
+                            <p>Nenhum registro encontrado para este mobilizador</p>  
+                        </div>  
+                    `;  
+                }  
+                  
+                // Create headers based on mobilizador type  
+                let headers = `  
+                    <tr>  
+                        <th>Pos</th>  
+                        <th>Prefixo</th>  
+                        <th>Dependência</th>  
+                        <th>Carteira</th>  
+                `;  
+                  
+                if (mobilizadorName === 'Icred 15/90') {  
+                    headers += `<th class="number-column">% Ating</th>`;  
+                } else {  
+                    headers += `  
+                        <th class="number-column">Ating Mês (%)</th>  
+                        <th class="number-column">Nec Dia</th>  
+                        <th class="number-column">Rlz Dia</th>  
+                        <th class="number-column">% Ating Dia</th>  
+                    `;  
+                }  
+                  
+                headers += '</tr>';  
+                  
+                // Create rows (limit to 100 for performance)  
+                const rows = data.slice(0, 100).map((item, index) => {  
+                    let row = `  
+                        <tr>  
+                            <td class="position-cell">${this.getPositionDisplay(index + 1)}</td>  
+                            <td>${item.prefixo}</td>  
+                            <td>${item.dependencia}</td>  
+                            <td>${item.carteira}</td>  
+                    `;  
+                      
+                    if (mobilizadorName === 'Icred 15/90') {  
+                        row += `<td class="percentage-cell">${this.formatValue(item.ating, true)}</td>`;  
+                    } else {  
+                        row += `  
+                            <td class="${this.getNumberClass(item.atingMes, true)}">${this.formatValue(item.atingMes, true)}</td>  
+                            <td class="number-cell">${this.formatValue(item.necDia)}</td>  
+                            <td class="number-cell">${this.formatValue(item.rlzDia)}</td>  
+                            <td class="${this.getNumberClass(item.atingDia, true)}">${this.formatValue(item.atingDia, true)}</td>  
+                        `;  
+                    }  
+                      
+                    row += '</tr>';  
+                    return row;  
+                }).join('');  
+                  
+                return `  
+                    <table>  
+                        <thead>${headers}</thead>  
+                        <tbody>${rows}</tbody>  
+                    </table>  
+                `;  
+            }  
+  
+            getPositionDisplay(position) {  
+                if (position === 1) return '<span class="medal">🥇</span>';  
+                if (position === 2) return '<span class="medal">🥈</span>';  
+                if (position === 3) return '<span class="medal">🥉</span>';  
+                return position + 'º';  
+            }  
+  
+            getNumberClass(value, isPercentage) {  
+                if (value === undefined || value === null) return 'number-cell';  
+                if (isPercentage) {  
+                    return value >= 100 ? 'percentage-cell' : (value < 80 ? 'number-cell negative' : 'number-cell');  
+                }  
+                return 'number-cell';  
+            }  
+  
+            formatValue(value, isPercentage = false) {  
+                if (value === undefined || value === null) return '-';  
+                const formatted = value.toFixed(2).replace('.', ',');  
+                return isPercentage ? formatted + '%' : formatted;  
+            }  
+  
+            exportMobilizador(mobilizadorName) {  
+                const mobilizador = this.mobilizadores[mobilizadorName];  
+                if (!mobilizador || mobilizador.data.length === 0) {  
+                    this.showAlert('error', 'Nenhum dado para exportar neste mobilizador');  
+                    return;  
+                }  
+  
+                // Special handling for Desembolso PF - divide into 3 panels  
+                if (mobilizadorName === 'Desembolso PF') {  
+                    this.exportDesembolsoPFPanels(mobilizador);  
+                } else {  
+                    this.exportSinglePanel(mobilizadorName, mobilizador);  
+                }  
+            }  
+  
+            exportDesembolsoPFPanels(mobilizador) {  
+                const totalRecords = mobilizador.data.length;  
+                const recordsPerPanel = Math.ceil(totalRecords / 3);  
+                  
+                for (let i = 0; i < 3; i++) {  
+                    const startIdx = i * recordsPerPanel;  
+                    const endIdx = Math.min(startIdx + recordsPerPanel, totalRecords);  
+                      
+                    if (startIdx >= totalRecords) break;  
+                      
+                    const panelData = mobilizador.data.slice(startIdx, endIdx);  
+                    this.createPFPanel(panelData, i + 1, startIdx, endIdx, totalRecords);  
+                }  
+                  
+                this.showAlert('success', `3 painéis do Desembolso PF exportados com sucesso!`);  
+            }  
+  
+            createPFPanel(data, panelNumber, startIdx, endIdx, totalRecords) {  
+                const canvas = document.getElementById('exportCanvas');  
+                const ctx = canvas.getContext('2d');  
+                  
+                // Configure canvas size - narrower width  
+                const width = 600; // 50% reduction from 1200  
+                const rowHeight = 42; // Increased for better readability  
+                const headerHeight = 200;  
+                const rows = data.length;  
+                const height = headerHeight + (rows * rowHeight) + 100;  
+                  
+                canvas.width = width;  
+                canvas.height = height;  
+                  
+                // White background  
+                ctx.fillStyle = '#FFFFFF';  
+                ctx.fillRect(0, 0, width, height);  
+                  
+                // Header with BB blue  
+                ctx.fillStyle = '#003366';  
+                ctx.fillRect(0, 0, width, 140);  
+                  
+                // Yellow accent bar  
+                ctx.fillStyle = '#FFCC00';  
+                ctx.fillRect(0, 140, width, 8);  
+                  
+                // Title - MUCH LARGER  
+                ctx.fillStyle = '#FFFFFF';  
+                ctx.font = 'bold 42px Segoe UI';  
+                ctx.textAlign = 'center';  
+                ctx.fillText('DESEMBOLSO PF', width / 2, 60);  
+                  
+                // Panel info  
+                ctx.font = 'bold 24px Segoe UI';  
+                ctx.fillStyle = '#FFCC00';  
+                ctx.fillText(`Painel ${panelNumber} de 3`, width / 2, 95);  
+                  
+                // Date and records info  
+                ctx.font = '16px Segoe UI';  
+                ctx.fillStyle = '#FFFFFF';  
+                const date = new Date().toLocaleDateString('pt-BR');  
+                ctx.fillText(`${date} • Registros ${startIdx + 1} a ${endIdx} de ${totalRecords}`, width / 2, 120);  
+                  
+                // Table header  
+                const tableY = 165;  
+                ctx.fillStyle = '#F0F0F0';  
+                ctx.fillRect(20, tableY, width - 40, 35);  
+                  
+                // Table header text - LARGER FONTS  
+                ctx.fillStyle = '#003366';  
+                ctx.font = 'bold 16px Segoe UI';  
+                ctx.textAlign = 'left';  
+                ctx.fillText('PREFIXO', 30, tableY + 23);  
+                ctx.fillText('DEPENDÊNCIA', 110, tableY + 23);  
+                ctx.fillText('CART.', 320, tableY + 23);  
+                  
+                ctx.textAlign = 'right';  
+                ctx.font = 'bold 14px Segoe UI';  
+                ctx.fillText('ATING', 420, tableY + 23);  
+                ctx.fillText('NEC', 480, tableY + 23);  
+                ctx.fillText('RLZ', 530, tableY + 23);  
+                /* >>> ALTERAÇÃO: desloca a última coluna (%DIA) mais à direita para não embolar <<< */
+                ctx.fillText('%DIA', width - 20, tableY + 23);  
+                  
+                // Table rows  
+                let currentY = tableY + 35;  
+                  
+                data.forEach((item, index) => {  
+                    // Zebra striping with light colors  
+                    if (index % 2 === 0) {  
+                        ctx.fillStyle = '#F8F9FA';  
+                        ctx.fillRect(20, currentY, width - 40, rowHeight);  
+                    }  
+                      
+                    // Row content - LARGER FONTS  
+                    ctx.font = 'bold 15px Segoe UI';  
+                    ctx.fillStyle = '#003366';  
+                    ctx.textAlign = 'left';  
+                      
+                    // Prefixo  
+                    ctx.fillText(item.prefixo, 30, currentY + 28);  
+                      
+                    // Dependência (truncated if needed)  
+                    ctx.font = '14px Segoe UI';  
+                    ctx.fillStyle = '#333333';  
+                    const maxDepWidth = 200;  
+                    const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);  
+                    ctx.fillText(truncatedDep, 110, currentY + 28);  
+                      
+                    // Carteira  
+                    ctx.font = 'bold 14px Segoe UI';  
+                    ctx.fillText(item.carteira, 320, currentY + 28);  
+                      
+                    // Numeric values with colors  
+                    ctx.textAlign = 'right';  
+                      
+                    // Ating Mês  
+                    ctx.font = 'bold 14px Segoe UI';  
+                    ctx.fillStyle = this.getLightExportColor(item.atingMes, true);  
+                    ctx.fillText(this.formatCompact(item.atingMes, true), 420, currentY + 28);  
+                      
+                    // Nec Dia  
+                    ctx.font = '13px Segoe UI';  
+                    ctx.fillStyle = '#666666';  
+                    ctx.fillText(this.formatCompact(item.necDia), 480, currentY + 28);  
+                      
+                    // Rlz Dia  
+                    ctx.fillText(this.formatCompact(item.rlzDia), 530, currentY + 28);  
+                      
+                    // % Ating Dia  (>>> ALTERAÇÃO: move ligeiramente mais à direita <<<)
+                    ctx.font = 'bold 14px Segoe UI';  
+                    ctx.fillStyle = this.getLightExportColor(item.atingDia, true);  
+                    ctx.fillText(this.formatCompact(item.atingDia, true), width - 20, currentY + 28);  
+                      
+                    currentY += rowHeight;  
+                });  
+                  
+                // Footer (mantém barra, remove legenda solicitada)  
+                ctx.fillStyle = '#003366';  
+                ctx.fillRect(0, height - 40, width, 40);  
+                  
+                // >>> REMOVIDO: legenda "Sistema de Rankings - Banco do Brasil"
+                // (nenhum texto no rodapé, conforme pedido)
+                  
+                // Download  
+                canvas.toBlob((blob) => {  
+                    const url = URL.createObjectURL(blob);  
+                    const a = document.createElement('a');  
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);  
+                    a.download = `ranking_Desembolso_PF_Painel_${panelNumber}_${timestamp}.png`;  
+                    a.href = url;  
+                    a.click();  
+                    URL.revokeObjectURL(url);  
+                });  
+            }  
+  
+            exportSinglePanel(mobilizadorName, mobilizador) {  
+                const canvas = document.getElementById('exportCanvas');  
+                const ctx = canvas.getContext('2d');  
+                  
+                // Configure canvas size - narrower and condensed  
+                const width = 650; // Reduced width  
+                const rowHeight = 38; // Condensed height  
+                const headerHeight = 180;  
+                const rows = mobilizador.data.length;  
+                const height = headerHeight + (rows * rowHeight) + 80;  
+                  
+                canvas.width = width;  
+                canvas.height = height;  
+                  
+                // White background  
+                ctx.fillStyle = '#FFFFFF';  
+                ctx.fillRect(0, 0, width, height);  
+                  
+                // Header with gradient  
+                const gradient = ctx.createLinearGradient(0, 0, 0, 130);  
+                gradient.addColorStop(0, '#003366');  
+                gradient.addColorStop(1, '#004080');  
+                ctx.fillStyle = gradient;  
+                ctx.fillRect(0, 0, width, 130);  
+                  
+                // Yellow accent  
+                ctx.fillStyle = '#FFCC00';  
+                ctx.fillRect(0, 130, width, 6);  
+                  
+                // Title - LARGE FONT  
+                ctx.fillStyle = '#FFFFFF';  
+                ctx.font = 'bold 38px Segoe UI';  
+                ctx.textAlign = 'center';  
+                ctx.fillText(mobilizadorName.toUpperCase(), width / 2, 55);  
+                  
+                // >>> REMOVIDO: subtítulo "RANKING DE MOBILIZADORES"
+                // (não desenhar nada aqui, conforme solicitado)
+                  
+                // Date and count  
+                ctx.font = '14px Segoe UI';  
+                ctx.fillStyle = '#FFFFFF';  
+                const date = new Date().toLocaleDateString('pt-BR');  
+                ctx.fillText(`${date} • ${rows} registros`, width / 2, 110);  
+                  
+                // Table header  
+                const tableY = 150;  
+                ctx.fillStyle = '#F5F5F5';  
+                ctx.fillRect(15, tableY, width - 30, 32);  
+                  
+                // Border for header  
+                ctx.strokeStyle = '#003366';  
+                ctx.lineWidth = 2;  
+                ctx.strokeRect(15, tableY, width - 30, 32);  
+                  
+                // Table headers - LARGER FONTS  
+                ctx.fillStyle = '#003366';  
+                ctx.font = 'bold 15px Segoe UI';  
+                ctx.textAlign = 'left';  
+                ctx.fillText('PREFIXO', 25, tableY + 21);  
+                ctx.fillText('DEPENDÊNCIA', 100, tableY + 21);  
+                /* >>> ALTERAÇÃO: abreviar "CARTEIRA" para "CART." nos mobilizadores especificados <<< */
+                const abreviaCarteira = ['Desembolso Giro','Desembolso Agro','Regulariza Dívidas Agro'].includes(mobilizadorName);  
+                const carteiraLabel = abreviaCarteira ? 'CART.' : 'CARTEIRA';  
+                ctx.fillText(carteiraLabel, 330, tableY + 21);  
+                  
+                if (mobilizadorName === 'Icred 15/90') {  
+                    ctx.textAlign = 'right';  
+                    ctx.fillText('% ATING', width - 25, tableY + 21);  
+                } else {  
+                    ctx.textAlign = 'right';  
+                    ctx.font = 'bold 13px Segoe UI';  
+                    ctx.fillText('ATING', 430, tableY + 21);  
+                    ctx.fillText('NEC', 490, tableY + 21);  
+                    ctx.fillText('RLZ', 545, tableY + 21);  
+                    ctx.fillText('%DIA', width - 25, tableY + 21);  
+                }  
+                  
+                // Table rows  
+                let currentY = tableY + 32;  
+                  
+                mobilizador.data.forEach((item, index) => {  
+                    // Alternating row colors  
+                    if (index % 2 === 0) {  
+                        ctx.fillStyle = '#FAFAFA';  
+                        ctx.fillRect(15, currentY, width - 30, rowHeight);  
+                    }  
+                      
+                    // Row border bottom  
+                    ctx.strokeStyle = '#E0E0E0';  
+                    ctx.lineWidth = 0.5;  
+                    ctx.beginPath();  
+                    ctx.moveTo(15, currentY + rowHeight);  
+                    ctx.lineTo(width - 15, currentY + rowHeight);  
+                    ctx.stroke();  
+                      
+                    // Data - LARGER FONTS  
+                    ctx.font = 'bold 14px Segoe UI';  
+                    ctx.fillStyle = '#003366';  
+                    ctx.textAlign = 'left';  
+                      
+                    // Prefixo  
+                    ctx.fillText(item.prefixo, 25, currentY + 25);  
+                      
+                    // Dependência  
+                    ctx.font = '13px Segoe UI';  
+                    ctx.fillStyle = '#444444';  
+                    const maxDepWidth = 220;  
+                    const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);  
+                    ctx.fillText(truncatedDep, 100, currentY + 25);  
+                      
+                    // Carteira  
+                    ctx.font = 'bold 13px Segoe UI';  
+                    ctx.fillStyle = '#003366';  
+                    ctx.fillText(item.carteira, 330, currentY + 25);  
+                      
+                    // Values  
+                    ctx.textAlign = 'right';  
+                      
+                    if (mobilizadorName === 'Icred 15/90') {  
+                        ctx.font = 'bold 15px Segoe UI';  
+                        ctx.fillStyle = this.getLightExportColor(item.ating, true);  
+                        ctx.fillText(this.formatCompact(item.ating, true), width - 25, currentY + 25);  
+                    } else {  
+                        // Ating Mês  
+                        ctx.font = 'bold 13px Segoe UI';  
+                        ctx.fillStyle = this.getLightExportColor(item.atingMes, true);  
+                        ctx.fillText(this.formatCompact(item.atingMes, true), 430, currentY + 25);  
+                          
+                        // Nec Dia    
+                        ctx.font = '12px Segoe UI';  
+                        ctx.fillStyle = '#666666';  
+                        ctx.fillText(this.formatCompact(item.necDia), 490, currentY + 25);  
+                          
+                        // Rlz Dia  
+                        ctx.fillText(this.formatCompact(item.rlzDia), 545, currentY + 25);  
+                          
+                        // % Ating Dia  
+                        ctx.font = 'bold 13px Segoe UI';  
+                        ctx.fillStyle = this.getLightExportColor(item.atingDia, true);  
+                        ctx.fillText(this.formatCompact(item.atingDia, true), width - 25, currentY + 25);  
+                    }  
+                      
+                    currentY += rowHeight;  
+                });  
+                  
+                // Footer (mantém faixas, remove legenda solicitada)  
+                const footerGradient = ctx.createLinearGradient(0, height - 50, 0, height);  
+                footerGradient.addColorStop(0, '#004080');  
+                footerGradient.addColorStop(1, '#003366');  
+                ctx.fillStyle = footerGradient;  
+                ctx.fillRect(0, height - 50, width, 50);  
+                  
+                // Footer yellow line  
+                ctx.fillStyle = '#FFCC00';  
+                ctx.fillRect(0, height - 50, width, 3);  
+                  
+                // >>> REMOVIDO: legenda "Sistema de Análise de Rankings - Banco do Brasil"
+                // (nenhum texto no rodapé, conforme pedido)
+                  
+                // Download  
+                canvas.toBlob((blob) => {  
+                    const url = URL.createObjectURL(blob);  
+                    const a = document.createElement('a');  
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);  
+                    a.download = `ranking_${mobilizadorName.replace(/\s+/g, '_')}_${timestamp}.png`;  
+                    a.href = url;  
+                    a.click();  
+                    URL.revokeObjectURL(url);  
+                      
+                    this.showAlert('success', `Ranking exportado com sucesso!`);  
+                });  
+            }  
+  
+            getLightExportColor(value, isPercentage) {  
+                if (value === undefined || value === null) return '#999999';  
+                if (isPercentage) {  
+                    if (value >= 100) return '#28A745'; // Green  
+                    if (value >= 80) return '#FFC107'; // Yellow/Orange    
+                    return '#DC3545'; // Red  
+                }  
+                return '#666666';  
+            }  
+  
+            formatCompact(value, isPercentage = false) {  
+                if (value === undefined || value === null) return '-';  
+                  
+                // For large numbers, make them more compact  
+                if (!isPercentage && value >= 1000) {  
+                    const k = (value / 1000).toFixed(1).replace('.', ',');  
+                    return k + 'k';  
+                }  
+                  
+                const formatted = value.toFixed(1).replace('.', ',');  
+                return isPercentage ? formatted + '%' : formatted;  
+            }  
+  
+            truncateText(ctx, text, maxWidth) {  
+                if (!text) return '';  
+                if (ctx.measureText(text).width <= maxWidth) {  
+                    return text;  
+                }  
+                  
+                let truncated = text;  
+                while (ctx.measureText(truncated + '...').width > maxWidth && truncated.length > 0) {  
+                    truncated = truncated.slice(0, -1);  
+                }  
+                  
+                return truncated + '...';  
+            }  
+  
+            showAlert(type, message) {  
+                const alertElement = document.getElementById(`${type}Alert`);  
+                alertElement.textContent = message;  
+                alertElement.classList.add('active');  
+                  
+                setTimeout(() => {  
+                    alertElement.classList.remove('active');  
+                }, 5000);  
+            }  
+  
+            showProgress(show) {  
+                const progressBar = document.getElementById('progressBar');  
+                const progressFill = document.getElementById('progressFill');  
+                  
+                if (show) {  
+                    progressBar.classList.add('active');  
+                    progressFill.style.width = '100%';  
+                } else {  
+                    setTimeout(() => {  
+                        progressBar.classList.remove('active');  
+                        progressFill.style.width = '0%';  
+                    }, 500);  
+                }  
+            }  
+        }  
+  
+        // Initialize the analyzer  
+        const analyzer = new RankingAnalyzer();  
+          
+        console.log('🚀 Sistema de Análise de Rankings inicializado');  
+        console.log('📋 Mobilizadores configurados:', Object.keys(analyzer.mobilizadores));  
+    </script>  
+</body>  
 </html>
