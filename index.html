@@ -74,63 +74,6 @@
             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         }
 
-        .mapping-toggle {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: rgba(74, 144, 226, 0.1);
-            border-radius: 10px;
-            border: 1px solid var(--accent-color);
-        }
-
-        .toggle-switch {
-            position: relative;
-            width: 50px;
-            height: 26px;
-            background: var(--border-color);
-            border-radius: 13px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-        }
-
-        .toggle-switch.active {
-            background: var(--success-color);
-        }
-
-        .toggle-slider {
-            position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.3s ease;
-        }
-
-        .toggle-switch.active .toggle-slider {
-            transform: translateX(24px);
-        }
-
-        .toggle-label {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .toggle-label strong {
-            color: var(--accent-color);
-            font-size: 1.05em;
-        }
-
-        .toggle-label small {
-            color: var(--text-secondary);
-            font-size: 0.9em;
-        }
-
         .upload-area {
             border: 3px dashed var(--accent-color);
             border-radius: 10px;
@@ -491,12 +434,6 @@
             color: var(--danger-color);
         }
 
-        .alert.warning {
-            background: rgba(240, 173, 78, 0.2);
-            border: 1px solid var(--warning-color);
-            color: var(--warning-color);
-        }
-
         .export-canvas {
             display: none;
         }
@@ -549,17 +486,6 @@
         <div class="upload-section">
             <div class="alert success" id="successAlert"></div>
             <div class="alert error" id="errorAlert"></div>
-            <div class="alert warning" id="warningAlert"></div>
-            
-            <div class="mapping-toggle">
-                <div class="toggle-switch" id="mappingToggle">
-                    <div class="toggle-slider"></div>
-                </div>
-                <div class="toggle-label">
-                    <strong>Usar Mapeamento Inteligente de Colunas</strong>
-                    <small>ℹ️ Ative se os dados não estiverem corretos ou se a planilha mudou</small>
-                </div>
-            </div>
             
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📊</div>
@@ -584,10 +510,6 @@
                     <div class="value" id="totalRegistros">0</div>
                 </div>
                 <div class="summary-card">
-                    <h3>Modo de Processamento</h3>
-                    <div class="value" id="processingMode" style="font-size: 1.2em;">Padrão</div>
-                </div>
-                <div class="summary-card">
                     <h3>Arquivo Processado</h3>
                     <div class="value" id="fileName" style="font-size: 1.2em;">-</div>
                 </div>
@@ -610,9 +532,6 @@
     <script>
         class RankingAnalyzer {
             constructor() {
-                this.useSmartMapping = false;
-                
-                // Mapeamento fixo (padrão)
                 this.mobilizadores = {
                     'Desembolso PF': {
                         columns: {
@@ -664,20 +583,6 @@
             initializeEventListeners() {
                 const uploadArea = document.getElementById('uploadArea');
                 const fileInput = document.getElementById('fileInput');
-                const mappingToggle = document.getElementById('mappingToggle');
-
-                // Toggle para mapeamento inteligente
-                mappingToggle.addEventListener('click', () => {
-                    this.useSmartMapping = !this.useSmartMapping;
-                    mappingToggle.classList.toggle('active');
-                    
-                    const mode = this.useSmartMapping ? '🧠 Inteligente' : '📌 Padrão';
-                    console.log(`🔄 Modo de processamento alterado: ${mode}`);
-                    
-                    if (this.useSmartMapping) {
-                        this.showAlert('success', '🧠 Mapeamento Inteligente ativado! O sistema tentará identificar as colunas automaticamente.');
-                    }
-                });
 
                 // Click to upload
                 uploadArea.addEventListener('click', () => fileInput.click());
@@ -746,26 +651,11 @@
 
             processData(data) {
                 console.log('🔄 Iniciando processamento dos dados...');
-                console.log(`📍 Modo: ${this.useSmartMapping ? 'Mapeamento Inteligente' : 'Índices Fixos'}`);
-                
-                // Update processing mode display
-                document.getElementById('processingMode').textContent = this.useSmartMapping ? '🧠 Inteligente' : '📌 Padrão';
                 
                 // Reset all mobilizadores
                 Object.keys(this.mobilizadores).forEach(mobilizadorName => {
                     this.mobilizadores[mobilizadorName].data = [];
                 });
-
-                // Se mapeamento inteligente está ativo, tentar mapear as colunas
-                if (this.useSmartMapping) {
-                    const mappingSuccess = this.smartMapColumns(data);
-                    if (!mappingSuccess) {
-                        this.showAlert('warning', '⚠️ Mapeamento inteligente falhou. Usando índices fixos como alternativa.');
-                        console.log('⚠️ Voltando para modo padrão');
-                    } else {
-                        this.showAlert('success', '✅ Mapeamento inteligente aplicado com sucesso!');
-                    }
-                }
 
                 // Process each mobilizador
                 Object.entries(this.mobilizadores).forEach(([mobilizadorName, mobilizador]) => {
@@ -786,107 +676,8 @@
                 this.displayResults();
                 
                 // Show success message
-                const modeText = this.useSmartMapping ? ' (Mapeamento Inteligente)' : '';
-                this.showAlert('success', `Arquivo processado com sucesso${modeText}! ${total} registros encontrados.`);
+                this.showAlert('success', `Arquivo processado com sucesso! ${total} registros encontrados.`);
                 this.showProgress(false);
-            }
-
-            smartMapColumns(data) {
-                console.log('🧠 Iniciando mapeamento inteligente de colunas...');
-                
-                // Procurar pelos cabeçalhos nas primeiras 5 linhas
-                let headerRow = null;
-                for (let i = 0; i < Math.min(5, data.length); i++) {
-                    const row = data[i];
-                    if (row && row.some(cell => cell && String(cell).toLowerCase().includes('ating'))) {
-                        headerRow = i;
-                        console.log(`📋 Linha de cabeçalho encontrada: ${i + 1}`);
-                        break;
-                    }
-                }
-
-                if (headerRow === null) {
-                    console.error('❌ Não foi possível encontrar linha de cabeçalho');
-                    return false;
-                }
-
-                const headers = data[headerRow].map(h => h ? String(h).toLowerCase().trim() : '');
-                console.log('📊 Cabeçalhos encontrados:', headers);
-
-                try {
-                    // Mapear Desembolso PF
-                    this.mobilizadores['Desembolso PF'].columns = this.findColumns(headers, [
-                        { key: 'atingMes', patterns: ['pf', 'pessoa física', 'ating', 'mês', '%'] },
-                        { key: 'necDia', patterns: ['pf', 'nec', 'dia'] },
-                        { key: 'rlzDia', patterns: ['pf', 'rlz', 'realiz', 'dia'] },
-                        { key: 'atingDia', patterns: ['pf', 'ating', 'dia', '%'] }
-                    ]);
-
-                    // Mapear Desembolso Giro
-                    this.mobilizadores['Desembolso Giro'].columns = this.findColumns(headers, [
-                        { key: 'atingMes', patterns: ['giro', 'ating', 'mês', '%'] },
-                        { key: 'necDia', patterns: ['giro', 'nec', 'dia'] },
-                        { key: 'rlzDia', patterns: ['giro', 'rlz', 'realiz', 'dia'] },
-                        { key: 'atingDia', patterns: ['giro', 'ating', 'dia', '%'] }
-                    ]);
-
-                    // Mapear Desembolso Agro
-                    this.mobilizadores['Desembolso Agro'].columns = this.findColumns(headers, [
-                        { key: 'atingMes', patterns: ['agro', 'ating', 'mês', '%'] },
-                        { key: 'necDia', patterns: ['agro', 'nec', 'dia'] },
-                        { key: 'rlzDia', patterns: ['agro', 'rlz', 'realiz', 'dia'] },
-                        { key: 'atingDia', patterns: ['agro', 'ating', 'dia', '%'] }
-                    ]);
-
-                    // Mapear Icred 15/90
-                    this.mobilizadores['Icred 15/90'].columns = this.findColumns(headers, [
-                        { key: 'ating', patterns: ['icred', '15', '90', 'ating', '%'] }
-                    ]);
-
-                    // Mapear Regulariza Dívidas Agro
-                    this.mobilizadores['Regulariza Dívidas Agro'].columns = this.findColumns(headers, [
-                        { key: 'atingMes', patterns: ['regular', 'dívida', 'agro', 'ating', 'mês', '%'] },
-                        { key: 'necDia', patterns: ['regular', 'dívida', 'agro', 'nec', 'dia'] },
-                        { key: 'rlzDia', patterns: ['regular', 'dívida', 'agro', 'rlz', 'realiz', 'dia'] },
-                        { key: 'atingDia', patterns: ['regular', 'dívida', 'agro', 'ating', 'dia', '%'] }
-                    ]);
-
-                    console.log('✅ Mapeamento inteligente concluído');
-                    return true;
-                } catch (error) {
-                    console.error('❌ Erro no mapeamento inteligente:', error);
-                    return false;
-                }
-            }
-
-            findColumns(headers, patterns) {
-                const result = {};
-                
-                for (const pattern of patterns) {
-                    let bestMatch = -1;
-                    let bestScore = 0;
-                    
-                    headers.forEach((header, index) => {
-                        let score = 0;
-                        for (const term of pattern.patterns) {
-                            if (header.includes(term)) {
-                                score++;
-                            }
-                        }
-                        
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestMatch = index;
-                        }
-                    });
-                    
-                    if (bestMatch !== -1) {
-                        result[pattern.key] = bestMatch;
-                        console.log(`  ✓ ${pattern.key}: coluna ${bestMatch} (${headers[bestMatch]})`);
-                    }
-                }
-                
-                return result;
             }
 
             extractMobilizadorData(data, mobilizadorName, columns) {
@@ -1150,9 +941,9 @@
                 const canvas = document.getElementById('exportCanvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Configure canvas size - wider for better spacing
-                const width = 700; // Increased width for better column spacing
-                const rowHeight = 42;
+                // Configure canvas size - narrower width
+                const width = 600; // 50% reduction from 1200
+                const rowHeight = 42; // Increased for better readability
                 const headerHeight = 200;
                 const rows = data.length;
                 const height = headerHeight + (rows * rowHeight) + 100;
@@ -1172,7 +963,7 @@
                 ctx.fillStyle = '#FFCC00';
                 ctx.fillRect(0, 140, width, 8);
                 
-                // Title
+                // Title - MUCH LARGER
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = 'bold 42px Segoe UI';
                 ctx.textAlign = 'center';
@@ -1194,32 +985,32 @@
                 ctx.fillStyle = '#F0F0F0';
                 ctx.fillRect(20, tableY, width - 40, 35);
                 
-                // Table header text - ADJUSTED POSITIONS FOR BETTER SPACING
+                // Table header text - LARGER FONTS
                 ctx.fillStyle = '#003366';
                 ctx.font = 'bold 16px Segoe UI';
                 ctx.textAlign = 'left';
                 ctx.fillText('PREFIXO', 30, tableY + 23);
                 ctx.fillText('DEPENDÊNCIA', 110, tableY + 23);
-                ctx.fillText('CART.', 340, tableY + 23);
+                ctx.fillText('CART.', 320, tableY + 23);
                 
                 ctx.textAlign = 'right';
                 ctx.font = 'bold 14px Segoe UI';
-                ctx.fillText('ATING', 470, tableY + 23);
-                ctx.fillText('NEC', 540, tableY + 23);
-                ctx.fillText('RLZ', 610, tableY + 23); // More space
-                ctx.fillText('%DIA', width - 30, tableY + 23); // More space
+                ctx.fillText('ATING', 420, tableY + 23);
+                ctx.fillText('NEC', 480, tableY + 23);
+                ctx.fillText('RLZ', 530, tableY + 23);
+                ctx.fillText('%DIA', width - 30, tableY + 23);
                 
                 // Table rows
                 let currentY = tableY + 35;
                 
                 data.forEach((item, index) => {
-                    // Zebra striping
+                    // Zebra striping with light colors
                     if (index % 2 === 0) {
                         ctx.fillStyle = '#F8F9FA';
                         ctx.fillRect(20, currentY, width - 40, rowHeight);
                     }
                     
-                    // Row content
+                    // Row content - LARGER FONTS
                     ctx.font = 'bold 15px Segoe UI';
                     ctx.fillStyle = '#003366';
                     ctx.textAlign = 'left';
@@ -1227,34 +1018,34 @@
                     // Prefixo
                     ctx.fillText(item.prefixo, 30, currentY + 28);
                     
-                    // Dependência
+                    // Dependência (truncated if needed)
                     ctx.font = '14px Segoe UI';
                     ctx.fillStyle = '#333333';
-                    const maxDepWidth = 220;
+                    const maxDepWidth = 200;
                     const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);
                     ctx.fillText(truncatedDep, 110, currentY + 28);
                     
                     // Carteira
                     ctx.font = 'bold 14px Segoe UI';
-                    ctx.fillText(item.carteira, 340, currentY + 28);
+                    ctx.fillText(item.carteira, 320, currentY + 28);
                     
-                    // Numeric values - ADJUSTED POSITIONS
+                    // Numeric values with colors
                     ctx.textAlign = 'right';
                     
                     // Ating Mês
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillStyle = this.getLightExportColor(item.atingMes, true);
-                    ctx.fillText(this.formatCompact(item.atingMes, true), 470, currentY + 28);
+                    ctx.fillText(this.formatCompact(item.atingMes, true), 420, currentY + 28);
                     
                     // Nec Dia
                     ctx.font = '13px Segoe UI';
                     ctx.fillStyle = '#666666';
-                    ctx.fillText(this.formatCompact(item.necDia), 540, currentY + 28);
+                    ctx.fillText(this.formatCompact(item.necDia), 480, currentY + 28);
                     
-                    // Rlz Dia - MORE SPACE
-                    ctx.fillText(this.formatCompact(item.rlzDia), 610, currentY + 28);
+                    // Rlz Dia
+                    ctx.fillText(this.formatCompact(item.rlzDia), 530, currentY + 28);
                     
-                    // % Ating Dia - MORE SPACE
+                    // % Ating Dia
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillStyle = this.getLightExportColor(item.atingDia, true);
                     ctx.fillText(this.formatCompact(item.atingDia, true), width - 30, currentY + 28);
@@ -1287,9 +1078,9 @@
                 const canvas = document.getElementById('exportCanvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Configure canvas size
-                const width = 650;
-                const rowHeight = 38;
+                // Configure canvas size - narrower and condensed
+                const width = 650; // Reduced width
+                const rowHeight = 38; // Condensed height
                 const headerHeight = 180;
                 const rows = mobilizador.data.length;
                 const height = headerHeight + (rows * rowHeight) + 80;
@@ -1312,17 +1103,11 @@
                 ctx.fillStyle = '#FFCC00';
                 ctx.fillRect(0, 130, width, 6);
                 
-                // Title - abbreviated for Agro, Giro, Regulariza
-                let displayTitle = mobilizadorName.toUpperCase();
-                if (mobilizadorName.includes('Agro') || mobilizadorName.includes('Giro') || mobilizadorName.includes('Regulariza')) {
-                    displayTitle = displayTitle.replace('DESEMBOLSO', 'DESEMB.');
-                    displayTitle = displayTitle.replace('REGULARIZA DÍVIDAS', 'REGULAR. DÍV.');
-                }
-                
+                // Title - LARGE FONT
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = 'bold 38px Segoe UI';
                 ctx.textAlign = 'center';
-                ctx.fillText(displayTitle, width / 2, 55);
+                ctx.fillText(mobilizadorName.toUpperCase(), width / 2, 55);
                 
                 // Subtitle
                 ctx.font = '20px Segoe UI';
@@ -1345,13 +1130,13 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(15, tableY, width - 30, 32);
                 
-                // Table headers - abbreviated "CART."
+                // Table headers - LARGER FONTS
                 ctx.fillStyle = '#003366';
                 ctx.font = 'bold 15px Segoe UI';
                 ctx.textAlign = 'left';
                 ctx.fillText('PREFIXO', 25, tableY + 21);
                 ctx.fillText('DEPENDÊNCIA', 100, tableY + 21);
-                ctx.fillText('CART.', 330, tableY + 21); // ABBREVIATED
+                ctx.fillText('CARTEIRA', 330, tableY + 21);
                 
                 if (mobilizadorName === 'Icred 15/90') {
                     ctx.textAlign = 'right';
@@ -1383,7 +1168,7 @@
                     ctx.lineTo(width - 15, currentY + rowHeight);
                     ctx.stroke();
                     
-                    // Data
+                    // Data - LARGER FONTS
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillStyle = '#003366';
                     ctx.textAlign = 'left';
@@ -1531,7 +1316,6 @@
         
         console.log('🚀 Sistema de Análise de Rankings inicializado');
         console.log('📋 Mobilizadores configurados:', Object.keys(analyzer.mobilizadores));
-        console.log('🧠 Mapeamento Inteligente disponível');
     </script>
 </body>
 </html>
