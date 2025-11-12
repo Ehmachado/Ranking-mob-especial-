@@ -532,46 +532,49 @@
     <script>
         class RankingAnalyzer {
             constructor() {
+                // Estrutura de colunas do Excel:
+                // A: Prefixo, B: Dependência, C: UF (ignorar), D: Carteira, E: Tipo Carteira (ignorar), F: Indicadores Velocidade (ignorar)
+                
                 this.mobilizadores = {
                     'Desembolso PF': {
                         columns: {
-                            atingMes: 6,  // G
-                            necDia: 8,    // I
-                            rlzDia: 9,    // J
-                            atingDia: 10  // K
+                            atingMes: 6,  // G - Atingimento Mês
+                            necDia: 8,    // I - Necessidade Dia
+                            rlzDia: 9,    // J - Realizado Dia
+                            atingDia: 10  // K - % Atingimento Dia
                         },
                         data: []
                     },
                     'Desembolso Giro': {
                         columns: {
-                            atingMes: 12, // M
-                            necDia: 14,   // O
-                            rlzDia: 15,   // P
-                            atingDia: 16  // Q
+                            atingMes: 12, // M - Atingimento Mês
+                            necDia: 14,   // O - Necessidade Dia
+                            rlzDia: 15,   // P - Realizado Dia
+                            atingDia: 16  // Q - % Atingimento Dia
                         },
                         data: []
                     },
                     'Desembolso Agro': {
                         columns: {
-                            atingMes: 18, // S
-                            necDia: 20,   // U
-                            rlzDia: 21,   // V
-                            atingDia: 22  // W
+                            atingMes: 18, // S - Atingimento Mês
+                            necDia: 20,   // U - Necessidade Dia
+                            rlzDia: 21,   // V - Realizado Dia
+                            atingDia: 22  // W - % Atingimento Dia
                         },
                         data: []
                     },
                     'Icred 15/90': {
                         columns: {
-                            ating: 24     // Y
+                            ating: 24     // Y - % Atingimento
                         },
                         data: []
                     },
                     'Regulariza Dívidas Agro': {
                         columns: {
-                            atingMes: 27, // AB
-                            necDia: 29,   // AD
-                            rlzDia: 30,   // AE
-                            atingDia: 31  // AF
+                            atingMes: 27, // AB - Atingimento Mês
+                            necDia: 29,   // AD - Necessidade Dia
+                            rlzDia: 30,   // AE - Realizado Dia
+                            atingDia: 31  // AF - % Atingimento Dia
                         },
                         data: []
                     }
@@ -584,17 +587,14 @@
                 const uploadArea = document.getElementById('uploadArea');
                 const fileInput = document.getElementById('fileInput');
 
-                // Click to upload
                 uploadArea.addEventListener('click', () => fileInput.click());
 
-                // File input change
                 fileInput.addEventListener('change', (e) => {
                     if (e.target.files.length > 0) {
                         this.handleFile(e.target.files[0]);
                     }
                 });
 
-                // Drag and drop
                 uploadArea.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     uploadArea.classList.add('drag-over');
@@ -615,13 +615,11 @@
             }
 
             handleFile(file) {
-                // Validate file type
                 if (!file.name.match(/\.(xlsx|xls)$/i)) {
                     this.showAlert('error', 'Por favor, selecione um arquivo Excel válido (.xlsx ou .xls)');
                     return;
                 }
 
-                // Show progress
                 this.showProgress(true);
                 document.getElementById('fileName').textContent = file.name;
 
@@ -657,7 +655,8 @@
                     this.mobilizadores[mobilizadorName].data = [];
                 });
 
-                // Process each mobilizador
+                // Process each mobilizador independently
+                // IMPORTANTE: O mesmo Prefixo/Dependência/Carteira pode aparecer em MÚLTIPLOS mobilizadores
                 Object.entries(this.mobilizadores).forEach(([mobilizadorName, mobilizador]) => {
                     const processedData = this.extractMobilizadorData(data, mobilizadorName, mobilizador.columns);
                     mobilizador.data = processedData;
@@ -675,7 +674,6 @@
                 // Display results
                 this.displayResults();
                 
-                // Show success message
                 this.showAlert('success', `Arquivo processado com sucesso! ${total} registros encontrados.`);
                 this.showProgress(false);
             }
@@ -683,28 +681,30 @@
             extractMobilizadorData(data, mobilizadorName, columns) {
                 const results = [];
                 
-                // Start from row 3 (index 2) where data begins - after headers
+                // Começa na linha 3 (índice 2) onde começam os dados - após os cabeçalhos
                 for (let row = 2; row < data.length; row++) {
                     if (!data[row]) continue;
                     
-                    const prefixo = data[row][0];  // Coluna A
-                    const dependencia = data[row][1];  // Coluna B
-                    const carteira = data[row][3];  // Coluna D
+                    // Colunas base (aparecem em todos os mobilizadores)
+                    const prefixo = data[row][0];      // Coluna A - Prefixo
+                    const dependencia = data[row][1];  // Coluna B - Dependência
+                    // Coluna C (UF) - IGNORADA
+                    const carteira = data[row][3];     // Coluna D - Carteira
+                    // Colunas E e F - IGNORADAS
                     
-                    // Skip if basic data is missing
+                    // Pula se dados básicos estão faltando
                     if (!prefixo || !carteira) continue;
                     
                     const rowData = {
                         prefixo: String(prefixo).trim(),
                         dependencia: dependencia ? String(dependencia).trim() : '',
                         carteira: String(carteira).trim(),
-                        linha: row + 1 // Excel line number (1-based)
+                        linha: row + 1 // Número da linha no Excel (1-based)
                     };
                     
-                    // Check if this row has data for this mobilizador
                     let hasData = false;
                     
-                    // For Icred 15/90 - only one column
+                    // Para Icred 15/90 - apenas uma coluna (Y)
                     if (mobilizadorName === 'Icred 15/90') {
                         const value = data[row][columns.ating];
                         if (this.hasValue(value)) {
@@ -712,7 +712,7 @@
                             hasData = true;
                         }
                     } else {
-                        // For other mobilizadores - check if main column (atingMes) exists
+                        // Para outros mobilizadores - verifica se a coluna principal (atingMes) tem valor
                         if (columns.atingMes !== undefined) {
                             const atingMesValue = data[row][columns.atingMes];
                             if (this.hasValue(atingMesValue)) {
@@ -721,7 +721,7 @@
                             }
                         }
                         
-                        // Always read other columns if row has data
+                        // Se tem dados, lê as outras colunas (mesmo que sejam zero ou vazias)
                         if (hasData) {
                             if (columns.necDia !== undefined) {
                                 const necValue = data[row][columns.necDia];
@@ -735,23 +735,23 @@
                             
                             if (columns.atingDia !== undefined) {
                                 const atingDiaValue = data[row][columns.atingDia];
-                                // Only include atingDia if rlzDia has a valid non-zero value
+                                // REGRA IMPORTANTE: Só mostra % Ating Dia se Rlz Dia tiver valor válido e diferente de zero
                                 if (rowData.rlzDia !== null && rowData.rlzDia !== 0) {
                                     rowData.atingDia = this.hasValue(atingDiaValue) ? this.parseValue(atingDiaValue) : null;
                                 } else {
-                                    rowData.atingDia = null;
+                                    rowData.atingDia = null; // Deixa vazio se Rlz Dia for zero ou vazio
                                 }
                             }
                         }
                     }
                     
-                    // Add to results if has any data
+                    // Adiciona aos resultados SE tiver dados para este mobilizador específico
                     if (hasData) {
                         results.push(rowData);
                     }
                 }
                 
-                // Sort by main percentage (atingMes or ating) descending
+                // Ordena por percentual principal (atingMes ou ating) em ordem decrescente
                 results.sort((a, b) => {
                     const valueA = a.atingMes !== undefined && a.atingMes !== null ? a.atingMes : (a.ating !== undefined && a.ating !== null ? a.ating : -999999);
                     const valueB = b.atingMes !== undefined && b.atingMes !== null ? b.atingMes : (b.ating !== undefined && b.ating !== null ? b.ating : -999999);
@@ -776,11 +776,9 @@
                 const tabsContainer = document.getElementById('tabs');
                 const contentsContainer = document.getElementById('tabContents');
                 
-                // Clear existing content
                 tabsContainer.innerHTML = '';
                 contentsContainer.innerHTML = '';
                 
-                // Create tabs and content for each mobilizador
                 Object.entries(this.mobilizadores).forEach(([mobilizadorName, mobilizador], index) => {
                     // Create tab
                     const tab = document.createElement('div');
@@ -833,7 +831,6 @@
                     `;
                 }
                 
-                // Create headers based on mobilizador type
                 let headers = `
                     <tr>
                         <th>Pos</th>
@@ -855,7 +852,6 @@
                 
                 headers += '</tr>';
                 
-                // Create rows (limit to 100 for performance)
                 const rows = data.slice(0, 100).map((item, index) => {
                     let row = `
                         <tr>
@@ -916,7 +912,6 @@
                     return;
                 }
 
-                // Special handling for Desembolso PF - divide into 3 panels
                 if (mobilizadorName === 'Desembolso PF') {
                     this.exportDesembolsoPFPanels(mobilizador);
                 } else {
@@ -945,7 +940,6 @@
                 const canvas = document.getElementById('exportCanvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Configure canvas size - narrower width
                 const width = 600;
                 const rowHeight = 42;
                 const headerHeight = 200;
@@ -959,26 +953,22 @@
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, width, height);
                 
-                // Header with BB blue
+                // Header
                 ctx.fillStyle = '#003366';
                 ctx.fillRect(0, 0, width, 140);
                 
-                // Yellow accent bar
                 ctx.fillStyle = '#FFCC00';
                 ctx.fillRect(0, 140, width, 8);
                 
-                // Title
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = 'bold 42px Segoe UI';
                 ctx.textAlign = 'center';
                 ctx.fillText('DESEMBOLSO PF', width / 2, 60);
                 
-                // Panel info
                 ctx.font = 'bold 24px Segoe UI';
                 ctx.fillStyle = '#FFCC00';
                 ctx.fillText(`Painel ${panelNumber} de 3`, width / 2, 95);
                 
-                // Date and records info
                 ctx.font = '16px Segoe UI';
                 ctx.fillStyle = '#FFFFFF';
                 const date = new Date().toLocaleDateString('pt-BR');
@@ -989,7 +979,6 @@
                 ctx.fillStyle = '#F0F0F0';
                 ctx.fillRect(20, tableY, width - 40, 35);
                 
-                // Table header text
                 ctx.fillStyle = '#003366';
                 ctx.font = 'bold 16px Segoe UI';
                 ctx.textAlign = 'left';
@@ -1008,48 +997,37 @@
                 let currentY = tableY + 35;
                 
                 data.forEach((item, index) => {
-                    // Zebra striping
                     if (index % 2 === 0) {
                         ctx.fillStyle = '#F8F9FA';
                         ctx.fillRect(20, currentY, width - 40, rowHeight);
                     }
                     
-                    // Row content
                     ctx.font = 'bold 15px Segoe UI';
                     ctx.fillStyle = '#003366';
                     ctx.textAlign = 'left';
                     
-                    // Prefixo
                     ctx.fillText(item.prefixo, 30, currentY + 28);
                     
-                    // Dependência
                     ctx.font = '14px Segoe UI';
                     ctx.fillStyle = '#333333';
                     const maxDepWidth = 200;
                     const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);
                     ctx.fillText(truncatedDep, 110, currentY + 28);
                     
-                    // Carteira
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillText(item.carteira, 320, currentY + 28);
                     
-                    // Numeric values
                     ctx.textAlign = 'right';
                     
-                    // Ating Mês
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillStyle = this.getLightExportColor(item.atingMes, true);
                     ctx.fillText(this.formatCompact(item.atingMes, true), 420, currentY + 28);
                     
-                    // Nec Dia
                     ctx.font = '13px Segoe UI';
                     ctx.fillStyle = '#666666';
                     ctx.fillText(this.formatCompact(item.necDia), 480, currentY + 28);
-                    
-                    // Rlz Dia
                     ctx.fillText(this.formatCompact(item.rlzDia), 530, currentY + 28);
                     
-                    // % Ating Dia - only if rlzDia is valid
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillStyle = this.getLightExportColor(item.atingDia, true);
                     ctx.fillText(this.formatCompact(item.atingDia, true), width - 40, currentY + 28);
@@ -1066,7 +1044,6 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('Sistema de Rankings - Banco do Brasil', width / 2, height - 15);
                 
-                // Download
                 canvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -1082,7 +1059,6 @@
                 const canvas = document.getElementById('exportCanvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Configure canvas size
                 const width = 650;
                 const rowHeight = 38;
                 const headerHeight = 180;
@@ -1092,49 +1068,40 @@
                 canvas.width = width;
                 canvas.height = height;
                 
-                // White background
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, width, height);
                 
-                // Header
                 const gradient = ctx.createLinearGradient(0, 0, 0, 130);
                 gradient.addColorStop(0, '#003366');
                 gradient.addColorStop(1, '#004080');
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, width, 130);
                 
-                // Yellow accent
                 ctx.fillStyle = '#FFCC00';
                 ctx.fillRect(0, 130, width, 6);
                 
-                // Title
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = 'bold 38px Segoe UI';
                 ctx.textAlign = 'center';
                 ctx.fillText(mobilizadorName.toUpperCase(), width / 2, 55);
                 
-                // Subtitle
                 ctx.font = '20px Segoe UI';
                 ctx.fillStyle = '#FFCC00';
                 ctx.fillText('RANKING DE MOBILIZADORES', width / 2, 85);
                 
-                // Date and count
                 ctx.font = '14px Segoe UI';
                 ctx.fillStyle = '#FFFFFF';
                 const date = new Date().toLocaleDateString('pt-BR');
                 ctx.fillText(`${date} • ${rows} registros`, width / 2, 110);
                 
-                // Table header
                 const tableY = 150;
                 ctx.fillStyle = '#F5F5F5';
                 ctx.fillRect(15, tableY, width - 30, 32);
                 
-                // Border for header
                 ctx.strokeStyle = '#003366';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(15, tableY, width - 30, 32);
                 
-                // Table headers
                 ctx.fillStyle = '#003366';
                 ctx.font = 'bold 15px Segoe UI';
                 ctx.textAlign = 'left';
@@ -1154,17 +1121,14 @@
                     ctx.fillText('%DIA', width - 25, tableY + 21);
                 }
                 
-                // Table rows
                 let currentY = tableY + 32;
                 
                 mobilizador.data.forEach((item, index) => {
-                    // Alternating row colors
                     if (index % 2 === 0) {
                         ctx.fillStyle = '#FAFAFA';
                         ctx.fillRect(15, currentY, width - 30, rowHeight);
                     }
                     
-                    // Row border
                     ctx.strokeStyle = '#E0E0E0';
                     ctx.lineWidth = 0.5;
                     ctx.beginPath();
@@ -1172,27 +1136,22 @@
                     ctx.lineTo(width - 15, currentY + rowHeight);
                     ctx.stroke();
                     
-                    // Data
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillStyle = '#003366';
                     ctx.textAlign = 'left';
                     
-                    // Prefixo
                     ctx.fillText(item.prefixo, 25, currentY + 25);
                     
-                    // Dependência
                     ctx.font = '13px Segoe UI';
                     ctx.fillStyle = '#444444';
                     const maxDepWidth = 220;
                     const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);
                     ctx.fillText(truncatedDep, 100, currentY + 25);
                     
-                    // Carteira
                     ctx.font = 'bold 13px Segoe UI';
                     ctx.fillStyle = '#003366';
                     ctx.fillText(item.carteira, 330, currentY + 25);
                     
-                    // Values
                     ctx.textAlign = 'right';
                     
                     if (mobilizadorName === 'Icred 15/90') {
@@ -1200,20 +1159,15 @@
                         ctx.fillStyle = this.getLightExportColor(item.ating, true);
                         ctx.fillText(this.formatCompact(item.ating, true), width - 25, currentY + 25);
                     } else {
-                        // Ating Mês
                         ctx.font = 'bold 13px Segoe UI';
                         ctx.fillStyle = this.getLightExportColor(item.atingMes, true);
                         ctx.fillText(this.formatCompact(item.atingMes, true), 430, currentY + 25);
                         
-                        // Nec Dia
                         ctx.font = '12px Segoe UI';
                         ctx.fillStyle = '#666666';
                         ctx.fillText(this.formatCompact(item.necDia), 490, currentY + 25);
-                        
-                        // Rlz Dia
                         ctx.fillText(this.formatCompact(item.rlzDia), 545, currentY + 25);
                         
-                        // % Ating Dia
                         ctx.font = 'bold 13px Segoe UI';
                         ctx.fillStyle = this.getLightExportColor(item.atingDia, true);
                         ctx.fillText(this.formatCompact(item.atingDia, true), width - 25, currentY + 25);
@@ -1222,7 +1176,6 @@
                     currentY += rowHeight;
                 });
                 
-                // Footer
                 const footerGradient = ctx.createLinearGradient(0, height - 50, 0, height);
                 footerGradient.addColorStop(0, '#004080');
                 footerGradient.addColorStop(1, '#003366');
@@ -1237,7 +1190,6 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('Sistema de Análise de Rankings - Banco do Brasil', width / 2, height - 20);
                 
-                // Download
                 canvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -1264,7 +1216,6 @@
             formatCompact(value, isPercentage = false) {
                 if (value === undefined || value === null) return '-';
                 
-                // For large numbers, make compact
                 if (!isPercentage && value >= 1000) {
                     const k = (value / 1000).toFixed(1).replace('.', ',');
                     return k + 'k';
@@ -1314,7 +1265,7 @@
             }
         }
 
-        // Initialize the analyzer
+        // Initialize
         const analyzer = new RankingAnalyzer();
         
         console.log('🚀 Sistema de Análise de Rankings inicializado');
