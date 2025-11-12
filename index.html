@@ -694,8 +694,6 @@
                     // Skip if basic data is missing
                     if (!prefixo || !carteira) continue;
                     
-                    // Check if this row has data for this mobilizador
-                    let hasData = false;
                     const rowData = {
                         prefixo: String(prefixo).trim(),
                         dependencia: dependencia ? String(dependencia).trim() : '',
@@ -703,44 +701,46 @@
                         linha: row + 1 // Excel line number (1-based)
                     };
                     
+                    // Check if this row has data for this mobilizador
+                    let hasData = false;
+                    
                     // For Icred 15/90 - only one column
                     if (mobilizadorName === 'Icred 15/90') {
                         const value = data[row][columns.ating];
-                        if (this.isValidValue(value)) {
-                            rowData.ating = parseFloat(value);
+                        if (this.hasValue(value)) {
+                            rowData.ating = this.parseValue(value);
                             hasData = true;
                         }
                     } else {
-                        // For other mobilizadores - multiple columns
+                        // For other mobilizadores - check if main column (atingMes) exists
                         if (columns.atingMes !== undefined) {
-                            const value = data[row][columns.atingMes];
-                            if (this.isValidValue(value)) {
-                                rowData.atingMes = parseFloat(value);
+                            const atingMesValue = data[row][columns.atingMes];
+                            if (this.hasValue(atingMesValue)) {
+                                rowData.atingMes = this.parseValue(atingMesValue);
                                 hasData = true;
                             }
                         }
                         
-                        if (columns.necDia !== undefined) {
-                            const value = data[row][columns.necDia];
-                            if (this.isValidValue(value)) {
-                                rowData.necDia = parseFloat(value);
-                                hasData = true;
+                        // Always read other columns if row has data
+                        if (hasData) {
+                            if (columns.necDia !== undefined) {
+                                const necValue = data[row][columns.necDia];
+                                rowData.necDia = this.hasValue(necValue) ? this.parseValue(necValue) : null;
                             }
-                        }
-                        
-                        if (columns.rlzDia !== undefined) {
-                            const value = data[row][columns.rlzDia];
-                            if (this.isValidValue(value)) {
-                                rowData.rlzDia = parseFloat(value);
-                                hasData = true;
+                            
+                            if (columns.rlzDia !== undefined) {
+                                const rlzValue = data[row][columns.rlzDia];
+                                rowData.rlzDia = this.hasValue(rlzValue) ? this.parseValue(rlzValue) : null;
                             }
-                        }
-                        
-                        if (columns.atingDia !== undefined) {
-                            const value = data[row][columns.atingDia];
-                            if (this.isValidValue(value)) {
-                                rowData.atingDia = parseFloat(value);
-                                hasData = true;
+                            
+                            if (columns.atingDia !== undefined) {
+                                const atingDiaValue = data[row][columns.atingDia];
+                                // Only include atingDia if rlzDia has a valid non-zero value
+                                if (rowData.rlzDia !== null && rowData.rlzDia !== 0) {
+                                    rowData.atingDia = this.hasValue(atingDiaValue) ? this.parseValue(atingDiaValue) : null;
+                                } else {
+                                    rowData.atingDia = null;
+                                }
                             }
                         }
                     }
@@ -753,18 +753,22 @@
                 
                 // Sort by main percentage (atingMes or ating) descending
                 results.sort((a, b) => {
-                    const valueA = a.atingMes !== undefined ? a.atingMes : (a.ating !== undefined ? a.ating : 0);
-                    const valueB = b.atingMes !== undefined ? b.atingMes : (b.ating !== undefined ? b.ating : 0);
+                    const valueA = a.atingMes !== undefined && a.atingMes !== null ? a.atingMes : (a.ating !== undefined && a.ating !== null ? a.ating : -999999);
+                    const valueB = b.atingMes !== undefined && b.atingMes !== null ? b.atingMes : (b.ating !== undefined && b.ating !== null ? b.ating : -999999);
                     return valueB - valueA;
                 });
                 
                 return results;
             }
 
-            isValidValue(value) {
-                if (value === null || value === undefined || value === '') return false;
+            hasValue(value) {
+                return value !== null && value !== undefined && value !== '';
+            }
+
+            parseValue(value) {
+                if (value === null || value === undefined || value === '') return null;
                 const numValue = parseFloat(value);
-                return !isNaN(numValue) && numValue !== 0;
+                return !isNaN(numValue) ? numValue : null;
             }
 
             displayResults() {
@@ -942,8 +946,8 @@
                 const ctx = canvas.getContext('2d');
                 
                 // Configure canvas size - narrower width
-                const width = 600; // 50% reduction from 1200
-                const rowHeight = 42; // Increased for better readability
+                const width = 600;
+                const rowHeight = 42;
                 const headerHeight = 200;
                 const rows = data.length;
                 const height = headerHeight + (rows * rowHeight) + 100;
@@ -963,7 +967,7 @@
                 ctx.fillStyle = '#FFCC00';
                 ctx.fillRect(0, 140, width, 8);
                 
-                // Title - MUCH LARGER
+                // Title
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = 'bold 42px Segoe UI';
                 ctx.textAlign = 'center';
@@ -985,7 +989,7 @@
                 ctx.fillStyle = '#F0F0F0';
                 ctx.fillRect(20, tableY, width - 40, 35);
                 
-                // Table header text - LARGER FONTS
+                // Table header text
                 ctx.fillStyle = '#003366';
                 ctx.font = 'bold 16px Segoe UI';
                 ctx.textAlign = 'left';
@@ -998,19 +1002,19 @@
                 ctx.fillText('ATING', 420, tableY + 23);
                 ctx.fillText('NEC', 480, tableY + 23);
                 ctx.fillText('RLZ', 530, tableY + 23);
-                ctx.fillText('%DIA', width - 30, tableY + 23);
+                ctx.fillText('%DIA', width - 40, tableY + 23);
                 
                 // Table rows
                 let currentY = tableY + 35;
                 
                 data.forEach((item, index) => {
-                    // Zebra striping with light colors
+                    // Zebra striping
                     if (index % 2 === 0) {
                         ctx.fillStyle = '#F8F9FA';
                         ctx.fillRect(20, currentY, width - 40, rowHeight);
                     }
                     
-                    // Row content - LARGER FONTS
+                    // Row content
                     ctx.font = 'bold 15px Segoe UI';
                     ctx.fillStyle = '#003366';
                     ctx.textAlign = 'left';
@@ -1018,7 +1022,7 @@
                     // Prefixo
                     ctx.fillText(item.prefixo, 30, currentY + 28);
                     
-                    // Dependência (truncated if needed)
+                    // Dependência
                     ctx.font = '14px Segoe UI';
                     ctx.fillStyle = '#333333';
                     const maxDepWidth = 200;
@@ -1029,7 +1033,7 @@
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillText(item.carteira, 320, currentY + 28);
                     
-                    // Numeric values with colors
+                    // Numeric values
                     ctx.textAlign = 'right';
                     
                     // Ating Mês
@@ -1045,10 +1049,10 @@
                     // Rlz Dia
                     ctx.fillText(this.formatCompact(item.rlzDia), 530, currentY + 28);
                     
-                    // % Ating Dia
+                    // % Ating Dia - only if rlzDia is valid
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillStyle = this.getLightExportColor(item.atingDia, true);
-                    ctx.fillText(this.formatCompact(item.atingDia, true), width - 30, currentY + 28);
+                    ctx.fillText(this.formatCompact(item.atingDia, true), width - 40, currentY + 28);
                     
                     currentY += rowHeight;
                 });
@@ -1078,9 +1082,9 @@
                 const canvas = document.getElementById('exportCanvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Configure canvas size - narrower and condensed
-                const width = 650; // Reduced width
-                const rowHeight = 38; // Condensed height
+                // Configure canvas size
+                const width = 650;
+                const rowHeight = 38;
                 const headerHeight = 180;
                 const rows = mobilizador.data.length;
                 const height = headerHeight + (rows * rowHeight) + 80;
@@ -1092,7 +1096,7 @@
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, width, height);
                 
-                // Header with gradient
+                // Header
                 const gradient = ctx.createLinearGradient(0, 0, 0, 130);
                 gradient.addColorStop(0, '#003366');
                 gradient.addColorStop(1, '#004080');
@@ -1103,7 +1107,7 @@
                 ctx.fillStyle = '#FFCC00';
                 ctx.fillRect(0, 130, width, 6);
                 
-                // Title - LARGE FONT
+                // Title
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = 'bold 38px Segoe UI';
                 ctx.textAlign = 'center';
@@ -1130,13 +1134,13 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(15, tableY, width - 30, 32);
                 
-                // Table headers - LARGER FONTS
+                // Table headers
                 ctx.fillStyle = '#003366';
                 ctx.font = 'bold 15px Segoe UI';
                 ctx.textAlign = 'left';
                 ctx.fillText('PREFIXO', 25, tableY + 21);
                 ctx.fillText('DEPENDÊNCIA', 100, tableY + 21);
-                ctx.fillText('CARTEIRA', 330, tableY + 21);
+                ctx.fillText('CART.', 330, tableY + 21);
                 
                 if (mobilizadorName === 'Icred 15/90') {
                     ctx.textAlign = 'right';
@@ -1160,7 +1164,7 @@
                         ctx.fillRect(15, currentY, width - 30, rowHeight);
                     }
                     
-                    // Row border bottom
+                    // Row border
                     ctx.strokeStyle = '#E0E0E0';
                     ctx.lineWidth = 0.5;
                     ctx.beginPath();
@@ -1168,7 +1172,7 @@
                     ctx.lineTo(width - 15, currentY + rowHeight);
                     ctx.stroke();
                     
-                    // Data - LARGER FONTS
+                    // Data
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillStyle = '#003366';
                     ctx.textAlign = 'left';
@@ -1201,7 +1205,7 @@
                         ctx.fillStyle = this.getLightExportColor(item.atingMes, true);
                         ctx.fillText(this.formatCompact(item.atingMes, true), 430, currentY + 25);
                         
-                        // Nec Dia  
+                        // Nec Dia
                         ctx.font = '12px Segoe UI';
                         ctx.fillStyle = '#666666';
                         ctx.fillText(this.formatCompact(item.necDia), 490, currentY + 25);
@@ -1225,7 +1229,6 @@
                 ctx.fillStyle = footerGradient;
                 ctx.fillRect(0, height - 50, width, 50);
                 
-                // Footer yellow line
                 ctx.fillStyle = '#FFCC00';
                 ctx.fillRect(0, height - 50, width, 3);
                 
@@ -1251,9 +1254,9 @@
             getLightExportColor(value, isPercentage) {
                 if (value === undefined || value === null) return '#999999';
                 if (isPercentage) {
-                    if (value >= 100) return '#28A745'; // Green
-                    if (value >= 80) return '#FFC107'; // Yellow/Orange  
-                    return '#DC3545'; // Red
+                    if (value >= 100) return '#28A745';
+                    if (value >= 80) return '#FFC107';
+                    return '#DC3545';
                 }
                 return '#666666';
             }
@@ -1261,7 +1264,7 @@
             formatCompact(value, isPercentage = false) {
                 if (value === undefined || value === null) return '-';
                 
-                // For large numbers, make them more compact
+                // For large numbers, make compact
                 if (!isPercentage && value >= 1000) {
                     const k = (value / 1000).toFixed(1).replace('.', ',');
                     return k + 'k';
