@@ -3,17 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema BB Mobilizadores - Análise Excel</title>
+    <title>Sistema de Análise de Rankings - Mobilizadores BB</title>
+    
     <style>
-        /* Cores do Banco do Brasil */
         :root {
-            --bb-blue: #1e3a8a;
-            --bb-light-blue: #3b82f6;
-            --bb-yellow: #fbbf24;
-            --bb-green: #10b981;
-            --bb-red: #ef4444;
-            --bb-gray: #f3f4f6;
-            --bb-dark: #1f2937;
+            --primary-bg: #1E2C3A;
+            --secondary-bg: #243447;
+            --accent-color: #4A90E2;
+            --success-color: #5CB85C;
+            --warning-color: #F0AD4E;
+            --danger-color: #D9534F;
+            --text-primary: #FFFFFF;
+            --text-secondary: #B8C5D6;
+            --border-color: #3A4A5C;
+            --hover-bg: #2C3E50;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #4A90E2 0%, #7B68EE 100%);
         }
 
         * {
@@ -24,737 +29,909 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, var(--bb-blue) 0%, var(--bb-light-blue) 100%);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             min-height: 100vh;
-            color: var(--bb-dark);
-        }
-
-        .header {
-            background: var(--bb-blue);
-            color: white;
-            padding: 1.5rem 0;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            font-weight: 700;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
+            color: var(--text-primary);
+            padding: 20px;
         }
 
         .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            background: rgba(30, 44, 58, 0.9);
+            border-radius: 15px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1em;
         }
 
         .upload-section {
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            border: 3px dashed transparent;
-            transition: all 0.3s ease;
+            background: rgba(36, 52, 71, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         }
 
-        .upload-section.dragover {
-            border-color: var(--bb-blue);
-            background-color: #f8fafc;
-        }
-
-        .upload-zone {
+        .upload-area {
+            border: 3px dashed var(--accent-color);
+            border-radius: 10px;
+            padding: 40px;
             text-align: center;
-            padding: 3rem 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--gradient-1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .upload-area:hover::before,
+        .upload-area.drag-over::before {
+            opacity: 0.1;
+        }
+
+        .upload-area:hover {
+            border-color: var(--success-color);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.drag-over {
+            border-color: var(--success-color);
+            background: rgba(92, 184, 92, 0.1);
         }
 
         .upload-icon {
-            font-size: 4rem;
-            color: var(--bb-blue);
-            margin-bottom: 1rem;
+            font-size: 3em;
+            margin-bottom: 20px;
         }
 
-        .upload-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--bb-dark);
+        .upload-text {
+            font-size: 1.2em;
+            margin-bottom: 10px;
         }
 
-        .upload-subtitle {
-            color: #6b7280;
-            margin-bottom: 1.5rem;
-        }
-
-        .btn-upload {
-            background: var(--bb-blue);
-            color: white;
-            border: none;
-            padding: 1rem 2rem;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-upload:hover {
-            background: var(--bb-light-blue);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3);
+        .upload-subtext {
+            color: var(--text-secondary);
+            font-size: 0.9em;
         }
 
         .file-input {
             display: none;
         }
 
-        .loading {
+        .progress-bar {
             display: none;
-            text-align: center;
-            padding: 2rem;
-            background: white;
-            border-radius: 12px;
-            margin-bottom: 2rem;
+            margin-top: 20px;
+            background: var(--secondary-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            height: 6px;
         }
 
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--bb-blue);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
+        .progress-bar.active {
+            display: block;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-2);
+            width: 0;
+            transition: width 0.3s ease;
+            animation: pulse 2s infinite;
         }
 
-        .results {
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .results-section {
             display: none;
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            background: rgba(36, 52, 71, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         }
 
-        .mobilizer-group {
-            margin-bottom: 2rem;
-            padding: 1.5rem;
-            border: 1px solid #e5e7eb;
+        .results-section.active {
+            display: block;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: var(--primary-bg);
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid var(--accent-color);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(74, 144, 226, 0.2);
+        }
+
+        .summary-card h3 {
+            color: var(--accent-color);
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .summary-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: var(--primary-bg);
             border-radius: 8px;
-            background: #f9fafb;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            border: 2px solid transparent;
         }
 
-        .mobilizer-title {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--bb-blue);
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid var(--bb-blue);
+        .tab:hover {
+            background: var(--hover-bg);
+            transform: translateY(-2px);
         }
 
-        .ranking-list {
-            list-style: none;
+        .tab.active {
+            background: var(--gradient-2);
+            color: white;
+            font-weight: bold;
         }
 
-        .ranking-item {
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .group-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            background: white;
-            border-radius: 6px;
-            border-left: 4px solid var(--bb-blue);
-            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
         }
 
-        .ranking-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .group-title {
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .ranking-item.top-1 { border-left-color: #ffd700; }
-        .ranking-item.top-2 { border-left-color: #c0c0c0; }
-        .ranking-item.top-3 { border-left-color: #cd7f32; }
-
-        .rank-number {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--bb-blue);
-            margin-right: 1rem;
-        }
-
-        .mobilizer-name {
-            flex: 1;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-
-        .percentage {
-            font-size: 1.2rem;
-            font-weight: 700;
-            padding: 0.5rem 1rem;
+        .group-count {
+            background: var(--accent-color);
+            color: white;
+            padding: 4px 12px;
             border-radius: 20px;
-            background: var(--bb-gray);
+            font-size: 0.9em;
         }
 
-        .percentage.excellent { background: var(--bb-green); color: white; }
-        .percentage.good { background: var(--bb-yellow); color: var(--bb-dark); }
-        .percentage.poor { background: var(--bb-red); color: white; }
-
-        .download-section {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: var(--bb-gray);
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .btn-download {
-            background: var(--bb-green);
-            color: white;
+        .export-btn {
+            padding: 10px 20px;
+            background: var(--gradient-2);
             border: none;
-            padding: 1rem 2rem;
             border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: 600;
+            color: white;
             cursor: pointer;
-            margin: 0.5rem;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(74, 144, 226, 0.3);
+        }
+
+        .export-btn:active {
+            transform: translateY(0);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--primary-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        thead {
+            background: var(--gradient-2);
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: white;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            letter-spacing: 1px;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        tbody tr {
             transition: all 0.3s ease;
         }
 
-        .btn-download:hover {
-            background: #059669;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        tbody tr:hover {
+            background: var(--hover-bg);
+            transform: scale(1.01);
         }
 
-        .error-message {
-            background: var(--bb-red);
-            color: white;
-            padding: 1rem;
+        tbody tr:nth-child(even) {
+            background: rgba(58, 74, 92, 0.2);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .position-cell {
+            font-weight: bold;
+            color: var(--accent-color);
+            width: 80px;
+        }
+
+        .percentage-cell {
+            font-weight: bold;
+            color: var(--success-color);
+            text-align: right;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
             border-radius: 8px;
-            margin-top: 1rem;
+            margin-bottom: 20px;
             display: none;
         }
 
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
+        .alert.active {
+            display: block;
         }
 
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .alert.success {
+            background: rgba(92, 184, 92, 0.2);
+            border: 1px solid var(--success-color);
+            color: var(--success-color);
         }
 
-        .stat-number {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--bb-blue);
+        .alert.error {
+            background: rgba(217, 83, 79, 0.2);
+            border: 1px solid var(--danger-color);
+            color: var(--danger-color);
         }
 
-        .stat-label {
-            color: #6b7280;
-            font-size: 0.9rem;
-            margin-top: 0.5rem;
+        .export-canvas {
+            display: none;
         }
 
         @media (max-width: 768px) {
             .header h1 {
-                font-size: 2rem;
+                font-size: 1.8em;
             }
             
-            .container {
-                margin: 1rem auto;
-                padding: 0 0.5rem;
+            .tabs {
+                flex-wrap: wrap;
             }
             
-            .upload-section {
-                padding: 1.5rem;
-            }
-            
-            .ranking-item {
-                flex-direction: column;
+            .tab {
+                flex: 1 1 auto;
                 text-align: center;
-                gap: 0.5rem;
+                font-size: 0.9em;
+            }
+            
+            table {
+                font-size: 0.9em;
+            }
+            
+            th, td {
+                padding: 8px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🏦 Sistema BB Mobilizadores</h1>
-        <p>Análise de Rankings por % de Atingimento</p>
-    </div>
-
     <div class="container">
-        <!-- Upload Section -->
-        <div class="upload-section" id="uploadSection">
-            <div class="upload-zone" id="uploadZone">
+        <div class="header">
+            <h1>Sistema de Análise de Rankings</h1>
+            <p>Mobilizadores - Banco do Brasil</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="alert success" id="successAlert"></div>
+            <div class="alert error" id="errorAlert"></div>
+            
+            <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📊</div>
-                <h2 class="upload-title">Enviar Arquivo Excel</h2>
-                <p class="upload-subtitle">Arraste o arquivo aqui ou clique para selecionar</p>
-                <button class="btn-upload" onclick="document.getElementById('fileInput').click()">
-                    Selecionar Arquivo
-                </button>
+                <div class="upload-text">Arraste o arquivo Excel aqui</div>
+                <div class="upload-subtext">ou clique para selecionar (formatos: .xlsx, .xls)</div>
                 <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
-                <p style="margin-top: 1rem; color: #6b7280; font-size: 0.9rem;">
-                    Formatos aceitos: .xlsx, .xls (máx. 50MB)
-                </p>
+            </div>
+            
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
             </div>
         </div>
 
-        <!-- Loading -->
+        <div class="results-section" id="resultsSection">
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <h3>Total de Grupos</h3>
+                    <div class="value" id="totalGroups">6</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Total de Mobilizadores</h3>
+                    <div class="value" id="totalMobilizadores">0</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Arquivo Processado</h3>
+                    <div class="value" id="fileName" style="font-size: 1.2em;">-</div>
+                </div>
+            </div>
+
+            <div class="tabs" id="tabs"></div>
+            <div id="tabContents"></div>
+        </div>
+
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <h3>Processando arquivo...</h3>
-            <p>Analisando dados dos mobilizadores...</p>
+            <p>Processando dados...</p>
         </div>
-
-        <!-- Results -->
-        <div class="results" id="results">
-            <h2 style="text-align: center; margin-bottom: 2rem; color: var(--bb-blue);">
-                📈 Rankings por Grupo de Mobilizador
-            </h2>
-            
-            <div class="stats" id="stats"></div>
-            <div id="rankingContent"></div>
-            
-            <div class="download-section">
-                <h3 style="margin-bottom: 1rem; color: var(--bb-blue);">
-                    💾 Baixar Resultados
-                </h3>
-                <button class="btn-download" onclick="downloadResults()">
-                    📊 Baixar Rankings (JSON)
-                </button>
-                <button class="btn-download" onclick="downloadImage()">
-                    🖼️ Baixar Imagem (PNG)
-                </button>
-            </div>
-        </div>
-
-        <!-- Error Message -->
-        <div class="error-message" id="errorMessage"></div>
     </div>
 
-    <!-- SheetJS Library -->
-    <script src="xlsx.full.min.js"></script>
+    <canvas id="exportCanvas" class="export-canvas"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <script>
-        // Dados das correções aplicadas
-        const MOBILIZADOR_CONFIGS = {
-            'Mobilizador Desembolso Agro': {
-                'campos': [
-                    { 'coluna': 'S', 'nome': 'Atg' },
-                    { 'coluna': 'T', 'nome': 'Atg_T' },  // CORRIGIDO
-                    { 'coluna': 'U', 'nome': 'Atg_U' }   // CORRIGIDO
-                ]
-            },
-            'Mobilizador Regulariza Dívidas Agro': {
-                'campos': [
-                    { 'coluna': 'AB', 'nome': 'Conexao_105' },
-                    { 'coluna': 'AC', 'nome': 'Conexao_AC' },  // CORRIGIDO
-                    { 'coluna': 'AD', 'nome': 'Conexao_AD' },  // CORRIGIDO
-                    { 'coluna': 'AE', 'nome': 'Conexao_AE' },  // CORRIGIDO
-                    { 'coluna': 'AF', 'nome': 'Conexao_AF' },  // CORRIGIDO
-                    { 'coluna': 'AG', 'nome': 'Conexao_AG' }   // CORRIGIDO
-                ]
-            }
-        };
-
-        let analyzedData = null;
-
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            const fileInput = document.getElementById('fileInput');
-            const uploadZone = document.getElementById('uploadZone');
-            const uploadSection = document.getElementById('uploadSection');
-
-            // File input change
-            fileInput.addEventListener('change', handleFileSelect);
-
-            // Drag and drop events
-            uploadSection.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                uploadSection.classList.add('dragover');
-            });
-
-            uploadSection.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                uploadSection.classList.remove('dragover');
-            });
-
-            uploadSection.addEventListener('drop', function(e) {
-                e.preventDefault();
-                uploadSection.classList.remove('dragover');
+        class RankingAnalyzer {
+            constructor() {
+                this.groups = {
+                    'Mobilizador Desembolso PF': { start: 6, end: 10, data: [] },
+                    'Mobilizador Desembolso Giro': { start: 12, end: 16, data: [] },
+                    'Mobilizador Desembolso Agro': { start: 18, end: 22, data: [] },
+                    'Mobilizador Icred 15/90': { start: 24, end: 25, data: [] },
+                    'Mobilizador Regulariza Dívidas Agro': { start: 27, end: 31, data: [] },
+                    'Mobilizador Portfólio Priorizado': { start: 33, end: 37, data: [] }
+                };
                 
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    processFile(files[0]);
-                }
-            });
-        });
-
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file) {
-                processFile(file);
-            }
-        }
-
-        function processFile(file) {
-            // Validar arquivo
-            if (!file.name.match(/\.(xlsx|xls)$/i)) {
-                showError('Por favor, selecione um arquivo Excel válido (.xlsx ou .xls)');
-                return;
+                this.initializeEventListeners();
             }
 
-            if (file.size > 50 * 1024 * 1024) {
-                showError('Arquivo muito grande. Tamanho máximo: 50MB');
-                return;
-            }
+            initializeEventListeners() {
+                const uploadArea = document.getElementById('uploadArea');
+                const fileInput = document.getElementById('fileInput');
 
-            showLoading();
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+                // Click to upload
+                uploadArea.addEventListener('click', () => fileInput.click());
+
+                // File input change
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this.handleFile(e.target.files[0]);
+                    }
+                });
+
+                // Drag and drop
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('drag-over');
+                });
+
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('drag-over');
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('drag-over');
                     
-                    // Pegar a primeira planilha
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    
-                    // Converter para JSON
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                    
-                    // Analisar dados
-                    analyzedData = analyzeMobilizerData(jsonData);
-                    
-                    // Mostrar resultados
-                    displayResults(analyzedData);
-                    
-                } catch (error) {
-                    console.error('Erro ao processar arquivo:', error);
-                    showError('Erro ao processar arquivo Excel. Verifique se o formato está correto.');
-                } finally {
-                    hideLoading();
-                }
-            };
-            
-            reader.readAsArrayBuffer(file);
-        }
+                    if (e.dataTransfer.files.length > 0) {
+                        this.handleFile(e.dataTransfer.files[0]);
+                    }
+                });
+            }
 
-        function analyzeMobilizerData(data) {
-            const results = {};
-            let totalRecords = 0;
-            
-            // Encontrar cabeçalhos
-            const headers = data[0] || [];
-            
-            // Processar cada grupo de mobilizador
-            for (const [grupo, config] of Object.entries(MOBILIZADOR_CONFIGS)) {
-                const grupoData = findMobilizerGroupData(data, grupo, headers);
-                if (grupoData) {
-                    results[grupo] = grupoData;
-                    totalRecords += grupoData.mobilizadores.length;
+            handleFile(file) {
+                // Validate file type
+                if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                    this.showAlert('error', 'Por favor, selecione um arquivo Excel válido (.xlsx ou .xls)');
+                    return;
                 }
-            }
-            
-            return {
-                grupos: results,
-                totalMobilizadores: totalRecords,
-                timestamp: new Date().toLocaleString('pt-BR')
-            };
-        }
 
-        function findMobilizerGroupData(data, grupoNome, headers) {
-            let startRow = -1;
-            
-            // Encontrar linha do grupo
-            for (let i = 0; i < data.length; i++) {
-                const row = data[i];
-                if (row && row.some(cell => 
-                    typeof cell === 'string' && cell.includes(grupoNome)
-                )) {
-                    startRow = i + 1;
-                    break;
-                }
+                // Show progress
+                this.showProgress(true);
+                document.getElementById('fileName').textContent = file.name;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: null });
+                        
+                        console.log('📊 Planilha carregada:', {
+                            linhas: jsonData.length,
+                            colunas: jsonData[0] ? jsonData[0].length : 0
+                        });
+
+                        this.processData(jsonData);
+                    } catch (error) {
+                        console.error('Erro ao processar arquivo:', error);
+                        this.showAlert('error', 'Erro ao processar o arquivo. Verifique se é um Excel válido.');
+                        this.showProgress(false);
+                    }
+                };
+
+                reader.readAsArrayBuffer(file);
             }
-            
-            if (startRow === -1) return null;
-            
-            const config = MOBILIZADOR_CONFIGS[grupoNome];
-            const mobilizadores = [];
-            const columnIndexes = {};
-            
-            // Mapear colunas
-            for (const campo of config.campos) {
-                const colIndex = headers.findIndex(h => 
-                    h && h.toString().toUpperCase().includes(campo.coluna.toUpperCase())
-                );
-                if (colIndex !== -1) {
-                    columnIndexes[campo.nome] = colIndex;
-                }
-            }
-            
-            // Extrair dados dos mobilizadores
-            for (let i = startRow; i < data.length; i++) {
-                const row = data[i];
+
+            processData(data) {
+                console.log('🔄 Iniciando processamento dos dados...');
                 
-                // Parar se encontrar outro grupo
-                if (row && row.some(cell => 
-                    typeof cell === 'string' && 
-                    cell.includes('Mobilizador') && 
-                    !cell.includes(grupoNome)
-                )) {
-                    break;
-                }
+                // Reset all groups
+                Object.keys(this.groups).forEach(groupName => {
+                    this.groups[groupName].data = [];
+                });
+
+                // Process each group
+                Object.entries(this.groups).forEach(([groupName, group]) => {
+                    const processedData = this.extractGroupData(data, groupName, group.start, group.end);
+                    group.data = this.removeDuplicates(processedData);
+                    
+                    console.log(`✅ ${groupName}:`, {
+                        colunas: `${group.start}-${group.end}`,
+                        encontrados: group.data.length
+                    });
+                });
+
+                // Calculate total
+                const total = Object.values(this.groups).reduce((sum, group) => sum + group.data.length, 0);
+                document.getElementById('totalMobilizadores').textContent = total;
+
+                // Display results
+                this.displayResults();
                 
-                // Skip linha vazia
-                if (!row || row.length === 0 || !row[0]) continue;
+                // Show success message
+                this.showAlert('success', `Arquivo processado com sucesso! ${total} mobilizadores encontrados.`);
+                this.showProgress(false);
+            }
+
+            extractGroupData(data, groupName, startCol, endCol) {
+                const results = [];
                 
-                const nome = row[0];
-                let percentualTotal = 0;
-                let camposCount = 0;
-                
-                // Calcular percentual médio dos campos disponíveis
-                for (const [campoNome, colIndex] of Object.entries(columnIndexes)) {
-                    const valor = row[colIndex];
-                    if (valor !== undefined && valor !== null && valor !== '') {
-                        const percentual = parseFloat(valor.toString().replace('%', '').replace(',', '.'));
-                        if (!isNaN(percentual)) {
-                            percentualTotal += percentual;
-                            camposCount++;
+                // Start from row 3 (index 2) where data begins
+                for (let row = 2; row < data.length; row++) {
+                    if (!data[row]) continue;
+                    
+                    for (let col = startCol; col <= endCol; col++) {
+                        const value = data[row][col];
+                        
+                        // Check if value is valid (> 0 and < 10000)
+                        if (value !== null && value !== undefined && !isNaN(value)) {
+                            const numValue = parseFloat(value);
+                            if (numValue > 0 && numValue < 10000) {
+                                const prefixo = data[row][0];
+                                const dependencia = data[row][1];
+                                const carteira = data[row][3];
+                                
+                                if (prefixo && carteira) {
+                                    results.push({
+                                        prefixo: String(prefixo).trim(),
+                                        dependencia: dependencia ? String(dependencia).trim() : '',
+                                        carteira: String(carteira).trim(),
+                                        percentual: numValue,
+                                        linha: row + 1, // Excel line number (1-based)
+                                        coluna: col
+                                    });
+                                }
+                            }
                         }
                     }
                 }
                 
-                if (camposCount > 0) {
-                    const percentualFinal = percentualTotal / camposCount;
-                    mobilizadores.push({
-                        nome: nome,
-                        percentual: percentualFinal.toFixed(2),
-                        camposUsados: camposCount
+                // Sort by percentage descending
+                results.sort((a, b) => b.percentual - a.percentual);
+                
+                return results;
+            }
+
+            removeDuplicates(data) {
+                const seen = new Set();
+                const unique = [];
+                
+                for (const item of data) {
+                    const key = `${item.prefixo}-${item.carteira}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        unique.push(item);
+                    }
+                }
+                
+                return unique;
+            }
+
+            displayResults() {
+                const resultsSection = document.getElementById('resultsSection');
+                const tabsContainer = document.getElementById('tabs');
+                const contentsContainer = document.getElementById('tabContents');
+                
+                // Clear existing content
+                tabsContainer.innerHTML = '';
+                contentsContainer.innerHTML = '';
+                
+                // Create tabs and content for each group
+                Object.entries(this.groups).forEach(([groupName, group], index) => {
+                    // Create tab
+                    const tab = document.createElement('div');
+                    tab.className = `tab ${index === 0 ? 'active' : ''}`;
+                    tab.textContent = groupName.replace('Mobilizador ', '');
+                    tab.dataset.group = groupName;
+                    
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                        tab.classList.add('active');
+                        document.getElementById(`content-${groupName.replace(/\s+/g, '-')}`).classList.add('active');
                     });
+                    
+                    tabsContainer.appendChild(tab);
+                    
+                    // Create content
+                    const content = document.createElement('div');
+                    content.id = `content-${groupName.replace(/\s+/g, '-')}`;
+                    content.className = `tab-content ${index === 0 ? 'active' : ''}`;
+                    
+                    content.innerHTML = `
+                        <div class="group-header">
+                            <div class="group-title">
+                                <span>${groupName}</span>
+                                <span class="group-count">${group.data.length} mobilizadores</span>
+                            </div>
+                            <button class="export-btn" onclick="analyzer.exportGroup('${groupName}')">
+                                <span>📸</span>
+                                <span>Exportar Ranking</span>
+                            </button>
+                        </div>
+                        ${this.createTable(group.data)}
+                    `;
+                    
+                    contentsContainer.appendChild(content);
+                });
+                
+                resultsSection.classList.add('active');
+            }
+
+            createTable(data) {
+                if (data.length === 0) {
+                    return `
+                        <div class="empty-state">
+                            <p>Nenhum mobilizador encontrado neste grupo</p>
+                        </div>
+                    `;
+                }
+                
+                const rows = data.slice(0, 50).map((item, index) => `
+                    <tr>
+                        <td class="position-cell">${index + 1}º</td>
+                        <td>${item.prefixo} - ${item.dependencia}</td>
+                        <td>${item.carteira}</td>
+                        <td class="percentage-cell">${this.formatPercentage(item.percentual)}%</td>
+                    </tr>
+                `).join('');
+                
+                return `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Posição</th>
+                                <th>Agência</th>
+                                <th>Carteira</th>
+                                <th style="text-align: right;">Percentual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            formatPercentage(value) {
+                return value.toFixed(2).replace('.', ',');
+            }
+
+            exportGroup(groupName) {
+                const group = this.groups[groupName];
+                if (!group || group.data.length === 0) {
+                    this.showAlert('error', 'Nenhum dado para exportar neste grupo');
+                    return;
+                }
+
+                const canvas = document.getElementById('exportCanvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Configure canvas size
+                const width = 800;
+                const rowHeight = 35;
+                const headerHeight = 200;
+                const maxRows = Math.min(group.data.length, 30);
+                const height = headerHeight + (maxRows * rowHeight) + 100;
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw background gradient
+                const gradient = ctx.createLinearGradient(0, 0, 0, height);
+                gradient.addColorStop(0, '#1e3c72');
+                gradient.addColorStop(1, '#2a5298');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+                
+                // Draw header background
+                ctx.fillStyle = 'rgba(30, 44, 58, 0.9)';
+                ctx.fillRect(20, 20, width - 40, 150);
+                
+                // Draw title
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 32px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText('RANKING DE MOBILIZADORES', width / 2, 65);
+                
+                // Draw group name
+                ctx.font = '24px Segoe UI';
+                ctx.fillStyle = '#4A90E2';
+                ctx.fillText(groupName, width / 2, 100);
+                
+                // Draw date and count
+                ctx.font = '16px Segoe UI';
+                ctx.fillStyle = '#B8C5D6';
+                const date = new Date().toLocaleDateString('pt-BR');
+                ctx.fillText(`${date} • ${group.data.length} mobilizadores`, width / 2, 130);
+                
+                // Draw table header
+                const tableY = 190;
+                ctx.fillStyle = 'rgba(74, 144, 226, 0.9)';
+                ctx.fillRect(20, tableY, width - 40, 40);
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 14px Segoe UI';
+                ctx.textAlign = 'left';
+                ctx.fillText('POS', 40, tableY + 25);
+                ctx.fillText('AGÊNCIA', 100, tableY + 25);
+                ctx.fillText('CARTEIRA', 500, tableY + 25);
+                ctx.textAlign = 'right';
+                ctx.fillText('PERCENTUAL', width - 40, tableY + 25);
+                
+                // Draw table rows
+                let currentY = tableY + 40;
+                
+                group.data.slice(0, maxRows).forEach((item, index) => {
+                    // Alternate row background
+                    if (index % 2 === 0) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                        ctx.fillRect(20, currentY, width - 40, rowHeight);
+                    }
+                    
+                    // Position medal for top 3
+                    ctx.textAlign = 'left';
+                    if (index === 0) {
+                        ctx.font = 'bold 20px Segoe UI';
+                        ctx.fillStyle = '#FFD700';
+                        ctx.fillText('🥇', 35, currentY + 23);
+                    } else if (index === 1) {
+                        ctx.font = 'bold 20px Segoe UI';
+                        ctx.fillStyle = '#C0C0C0';
+                        ctx.fillText('🥈', 35, currentY + 23);
+                    } else if (index === 2) {
+                        ctx.font = 'bold 20px Segoe UI';
+                        ctx.fillStyle = '#CD7F32';
+                        ctx.fillText('🥉', 35, currentY + 23);
+                    } else {
+                        ctx.font = 'bold 14px Segoe UI';
+                        ctx.fillStyle = '#4A90E2';
+                        ctx.fillText(`${index + 1}º`, 40, currentY + 23);
+                    }
+                    
+                    // Agency
+                    ctx.font = '14px Segoe UI';
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.textAlign = 'left';
+                    const agencyText = `${item.prefixo} - ${item.dependencia}`;
+                    const maxAgencyWidth = 350;
+                    const truncatedAgency = this.truncateText(ctx, agencyText, maxAgencyWidth);
+                    ctx.fillText(truncatedAgency, 100, currentY + 23);
+                    
+                    // Carteira
+                    ctx.fillText(item.carteira, 500, currentY + 23);
+                    
+                    // Percentage
+                    ctx.textAlign = 'right';
+                    ctx.font = 'bold 14px Segoe UI';
+                    ctx.fillStyle = '#5CB85C';
+                    ctx.fillText(`${this.formatPercentage(item.percentual)}%`, width - 40, currentY + 23);
+                    
+                    currentY += rowHeight;
+                });
+                
+                // Draw footer
+                ctx.fillStyle = 'rgba(30, 44, 58, 0.9)';
+                ctx.fillRect(20, currentY + 20, width - 40, 40);
+                
+                ctx.fillStyle = '#B8C5D6';
+                ctx.font = '12px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText('Sistema de Análise de Rankings - Banco do Brasil', width / 2, currentY + 45);
+                
+                // Download the image
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
+                    a.download = `ranking_${groupName.replace(/\s+/g, '_')}_${timestamp}.png`;
+                    a.href = url;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    this.showAlert('success', `Ranking exportado com sucesso!`);
+                });
+            }
+
+            truncateText(ctx, text, maxWidth) {
+                if (ctx.measureText(text).width <= maxWidth) {
+                    return text;
+                }
+                
+                let truncated = text;
+                while (ctx.measureText(truncated + '...').width > maxWidth && truncated.length > 0) {
+                    truncated = truncated.slice(0, -1);
+                }
+                
+                return truncated + '...';
+            }
+
+            showAlert(type, message) {
+                const alertElement = document.getElementById(`${type}Alert`);
+                alertElement.textContent = message;
+                alertElement.classList.add('active');
+                
+                setTimeout(() => {
+                    alertElement.classList.remove('active');
+                }, 5000);
+            }
+
+            showProgress(show) {
+                const progressBar = document.getElementById('progressBar');
+                const progressFill = document.getElementById('progressFill');
+                
+                if (show) {
+                    progressBar.classList.add('active');
+                    progressFill.style.width = '100%';
+                } else {
+                    setTimeout(() => {
+                        progressBar.classList.remove('active');
+                        progressFill.style.width = '0%';
+                    }, 500);
                 }
             }
-            
-            // Ordenar por percentual
-            mobilizadores.sort((a, b) => parseFloat(b.percentual) - parseFloat(a.percentual));
-            
-            return {
-                mobilizadores: mobilizadores,
-                total: mobilizadores.length,
-                esperado: grupoNome.includes('Desembolso') ? 12 : 22
-            };
         }
 
-        function displayResults(data) {
-            const statsContainer = document.getElementById('stats');
-            const rankingContainer = document.getElementById('rankingContent');
-            
-            // Mostrar estatísticas
-            statsContainer.innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-number">${data.totalMobilizadores}</div>
-                    <div class="stat-label">Total de Mobilizadores</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${Object.keys(data.grupos).length}</div>
-                    <div class="stat-label">Grupos Analisados</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${data.timestamp.split(' ')[0]}</div>
-                    <div class="stat-label">Data da Análise</div>
-                </div>
-            `;
-            
-            // Mostrar rankings por grupo
-            let html = '';
-            Object.entries(data.grupos).forEach(([grupo, info], index) => {
-                html += `
-                    <div class="mobilizador-group">
-                        <h3 class="mobilizer-title">${grupo}</h3>
-                        <p style="margin-bottom: 1rem; color: #6b7280;">
-                            Encontrados: <strong>${info.total}</strong> | Esperado: <strong>${info.esperado}</strong>
-                        </p>
-                        <ul class="ranking-list">
-                `;
-                
-                info.mobilizadores.forEach((mobilizer, rankIndex) => {
-                    const rankClass = rankIndex < 3 ? `top-${rankIndex + 1}` : '';
-                    const percentage = parseFloat(mobilizer.percentual);
-                    const percentageClass = percentage >= 100 ? 'excellent' : 
-                                         percentage >= 80 ? 'good' : 'poor';
-                    
-                    html += `
-                        <li class="ranking-item ${rankClass}">
-                            <div class="rank-number">${rankIndex + 1}º</div>
-                            <div class="mobilizer-name">${mobilizer.nome}</div>
-                            <div class="percentage ${percentageClass}">
-                                ${mobilizer.percentual}%
-                            </div>
-                        </li>
-                    `;
-                });
-                
-                html += `
-                        </ul>
-                    </div>
-                `;
-            });
-            
-            rankingContainer.innerHTML = html;
-            
-            // Mostrar resultados
-            document.getElementById('results').style.display = 'block';
-            document.getElementById('uploadSection').style.display = 'none';
-        }
-
-        function showLoading() {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('uploadSection').style.display = 'none';
-            document.getElementById('results').style.display = 'none';
-            hideError();
-        }
-
-        function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        function hideError() {
-            document.getElementById('errorMessage').style.display = 'none';
-        }
-
-        function downloadResults() {
-            if (!analyzedData) return;
-            
-            const dataStr = JSON.stringify(analyzedData, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(dataBlob);
-            
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `rankings_bb_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            
-            URL.revokeObjectURL(url);
-        }
-
-        function downloadImage() {
-            if (!analyzedData) return;
-            
-            // Criar canvas para a imagem
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Configurar canvas
-            canvas.width = 1200;
-            const estimatedHeight = Object.keys(analyzedData.grupos).length * 300 + 200;
-            canvas.height = Math.max(estimatedHeight, 600);
-            
-            // Fundo
-            ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Título
-            ctx.fillStyle = '#1e3a8a';
-            ctx.font = 'bold 32px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Rankings BB Mobilizadores', canvas.width/2, 60);
-            
-            // Data
-            ctx.font = '18px Arial';
-            ctx.fillText(analyzedData.timestamp, canvas.width/2, 90);
-            
-            let yPos = 150;
-            
-            // Rankings por grupo
-            Object.entries(analyzedData.grupos).forEach(([grupo, info]) => {
-                // Título do grupo
-                ctx.fillStyle = '#1e3a8a';
-                ctx.font = 'bold 24px Arial';
-                ctx.textAlign = 'left';
-                ctx.fillText(grupo, 50, yPos);
-                
-                // Estatísticas
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#6b7280';
-                ctx.fillText(`Encontrados: ${info.total} | Esperado: ${info.esperado}`, 50, yPos + 25);
-                
-                yPos += 50;
-                
-                // Top 10 mobilizadores
-                info.mobilizadores.slice(0, 10).forEach((mobilizer, index) => {
-                    const rank = index + 1;
-                    const percentage = parseFloat(mobilizer.percentual);
-                    
-                    // Ranking
-                    ctx.font = 'bold 20px Arial';
-                    ctx.fillStyle = '#1e3a8a';
-                    ctx.fillText(`${rank}º`, 50, yPos);
-                    
-                    // Nome
-                    ctx.font = '18px Arial';
-                    ctx.fillStyle = '#1f2937';
-                    ctx.fillText(mobilizer.nome.substring(0, 50), 120, yPos);
-                    
-                    // Percentual
-                    const percentageColor = percentage >= 100 ? '#10b981' : 
-                                          percentage >= 80 ? '#fbbf24' : '#ef4444';
-                    ctx.fillStyle = percentageColor;
-                    ctx.font = 'bold 18px Arial';
-                    ctx.textAlign = 'right';
-                    ctx.fillText(`${mobilizer.percentual}%`, canvas.width - 50, yPos);
-                    
-                    yPos += 30;
-                });
-                
-                yPos += 50;
-            });
-            
-            // Baixar
-            canvas.toBlob(function(blob) {
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `rankings_bb_${new Date().toISOString().split('T')[0]}.png`;
-                link.click();
-                URL.revokeObjectURL(url);
-            });
-        }
-
-        // Verificar se xlsx.full.min.js está disponível
-        if (typeof XLSX === 'undefined') {
-            showError('Biblioteca xlsx.full.min.js não encontrada. Certifique-se de que o arquivo está na raiz do projeto.');
-        }
+        // Initialize the analyzer
+        const analyzer = new RankingAnalyzer();
+        
+        console.log('🚀 Sistema de Análise de Rankings inicializado');
+        console.log('📋 Grupos configurados:', Object.keys(analyzer.groups));
     </script>
 </body>
 </html>
