@@ -532,6 +532,69 @@
     <script>
         class RankingAnalyzer {
             constructor() {
+                // Mapeamento de carteiras para redes
+                this.carteiraToRede = {
+                    '1486': 'REDE BARREIRAS',
+                    '1444': 'REDE BARREIRAS',
+                    '2612': 'REDE BARREIRAS',
+                    '4231': 'REDE BARREIRAS',
+                    '1168': 'REDE BARREIRAS',
+                    '231': 'REDE BARREIRAS',
+                    '3338': 'REDE BARREIRAS',
+                    '3618': 'REDE GUANAMBI',
+                    '4186': 'REDE GUANAMBI',
+                    '816': 'REDE GUANAMBI',
+                    '2261': 'REDE GUANAMBI',
+                    '2540': 'REDE GUANAMBI',
+                    '1089': 'REDE GUANAMBI',
+                    '230': 'REDE GUANAMBI',
+                    '923': 'REDE GUANAMBI',
+                    '1728': 'REDE GUANAMBI',
+                    '1171': 'REDE IRECÊ',
+                    '2231': 'REDE IRECÊ',
+                    '2079': 'REDE IRECÊ',
+                    '227': 'REDE IRECÊ',
+                    '548': 'REDE IRECÊ',
+                    '3842': 'REDE IRECÊ',
+                    '2499': 'REDE IRECÊ',
+                    '2749': 'REDE IRECÊ',
+                    '8153': 'REDE IRECÊ',
+                    '8154': 'REDE IRECÊ',
+                    '2997': 'REDE LEM',
+                    '5819': 'REDE LEM',
+                    '8164': 'REDE LEM',
+                    '2526': 'REDE LEM',
+                    '1129': 'REDE LEM',
+                    '1062': 'REDE LEM',
+                    '4624': 'REDE LEM',
+                    '1247': 'REDE LAPA',
+                    '8148': 'REDE LAPA',
+                    '2407': 'REDE LAPA',
+                    '8167': 'REDE LAPA',
+                    '2399': 'REDE LAPA',
+                    '4539': 'REDE LAPA',
+                    '1123': 'REDE LAPA',
+                    '1091': 'REDE LAPA',
+                    '4190': 'REDE LAPA',
+                    '1660': 'REDE LAPA',
+                    '744': 'REDE LAPA',
+                    '1100': 'REDE SEABRA',
+                    '4538': 'REDE SEABRA',
+                    '251': 'REDE SEABRA',
+                    '4181': 'REDE SEABRA',
+                    '985': 'REDE SEABRA',
+                    '817': 'REDE SEABRA',
+                    '4180': 'REDE SEABRA',
+                    '2367': 'REDE SEABRA',
+                    '2141': 'REDE SEABRA',
+                    '2680': 'REDE SAMAVI',
+                    '569': 'REDE SAMAVI',
+                    '4578': 'REDE SAMAVI',
+                    '1044': 'REDE SAMAVI',
+                    '2009': 'REDE SAMAVI',
+                    '4174': 'REDE SAMAVI'
+                };
+
                 this.mobilizadores = {
                     'Desembolso PF': {
                         columns: {
@@ -806,7 +869,7 @@
                             </div>
                             <button class="export-btn" onclick="analyzer.exportMobilizador('${mobilizadorName}')">
                                 <span>📸</span>
-                                <span>Exportar Ranking</span>
+                                <span>Exportar por Rede</span>
                             </button>
                         </div>
                         <div class="table-container">
@@ -912,177 +975,45 @@
                     return;
                 }
 
-                // Special handling for Desembolso PF - divide into 3 panels
-                if (mobilizadorName === 'Desembolso PF') {
-                    this.exportDesembolsoPFPanels(mobilizador);
-                } else {
-                    this.exportSinglePanel(mobilizadorName, mobilizador);
-                }
-            }
-
-            exportDesembolsoPFPanels(mobilizador) {
-                const totalRecords = mobilizador.data.length;
-                const recordsPerPanel = Math.ceil(totalRecords / 3);
+                // Agrupar dados por rede
+                const dataByRede = {};
                 
-                for (let i = 0; i < 3; i++) {
-                    const startIdx = i * recordsPerPanel;
-                    const endIdx = Math.min(startIdx + recordsPerPanel, totalRecords);
+                mobilizador.data.forEach(item => {
+                    const carteira = item.carteira;
+                    const rede = this.carteiraToRede[carteira] || 'REDE NÃO IDENTIFICADA';
                     
-                    if (startIdx >= totalRecords) break;
-                    
-                    const panelData = mobilizador.data.slice(startIdx, endIdx);
-                    this.createPFPanel(panelData, i + 1, startIdx, endIdx, totalRecords);
-                }
-                
-                this.showAlert('success', `3 painéis do Desembolso PF exportados com sucesso!`);
-            }
-
-            createPFPanel(data, panelNumber, startIdx, endIdx, totalRecords) {
-                const canvas = document.getElementById('exportCanvas');
-                const ctx = canvas.getContext('2d');
-                
-                // Configure canvas size - narrower width
-                const width = 700; // 50% reduction from 1200
-                const rowHeight = 42; // Increased for better readability
-                const headerHeight = 200;
-                const rows = data.length;
-                const height = headerHeight + (rows * rowHeight) + 100;
-                
-                canvas.width = width;
-                canvas.height = height;
-                
-                // White background
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, width, height);
-                
-                // Header with BB blue
-                ctx.fillStyle = '#003366';
-                ctx.fillRect(0, 0, width, 140);
-                
-                // Yellow accent bar
-                ctx.fillStyle = '#FFCC00';
-                ctx.fillRect(0, 140, width, 8);
-                
-                // Title - MUCH LARGER
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = 'bold 42px Segoe UI';
-                ctx.textAlign = 'center';
-                ctx.fillText('DESEMBOLSO PF', width / 2, 60);
-                
-                // Panel info
-                ctx.font = 'bold 24px Segoe UI';
-                ctx.fillStyle = '#FFCC00';
-                ctx.fillText(`Painel ${panelNumber} de 3`, width / 2, 95);
-                
-                // Date and records info
-                ctx.font = '16px Segoe UI';
-                ctx.fillStyle = '#FFFFFF';
-                const date = new Date().toLocaleDateString('pt-BR');
-                ctx.fillText(`${date} • Registros ${startIdx + 1} a ${endIdx} de ${totalRecords}`, width / 2, 120);
-                
-                // Table header
-                const tableY = 165;
-                ctx.fillStyle = '#F0F0F0';
-                ctx.fillRect(20, tableY, width - 40, 35);
-                
-                // Table header text - LARGER FONTS
-                ctx.fillStyle = '#003366';
-                ctx.font = 'bold 16px Segoe UI';
-                ctx.textAlign = 'left';
-                ctx.fillText('PREFIXO', 30, tableY + 23);
-                ctx.fillText('DEPENDÊNCIA', 110, tableY + 23);
-                ctx.fillText('CART.', 320, tableY + 23);
-                
-                ctx.textAlign = 'right';
-                ctx.font = 'bold 14px Segoe UI';
-                ctx.fillText('ATING', 470, tableY + 23);
-                ctx.fillText('NEC', 510, tableY + 23);
-                ctx.fillText('RLZ', 550, tableY + 23);
-                ctx.fillText('%DIA', width - 30, tableY + 23);
-                
-                // Table rows
-                let currentY = tableY + 35;
-                
-                data.forEach((item, index) => {
-                    // Zebra striping with light colors
-                    if (index % 2 === 0) {
-                        ctx.fillStyle = '#F8F9FA';
-                        ctx.fillRect(20, currentY, width - 40, rowHeight);
+                    if (!dataByRede[rede]) {
+                        dataByRede[rede] = [];
                     }
-                    
-                    // Row content - LARGER FONTS
-                    ctx.font = 'bold 15px Segoe UI';
-                    ctx.fillStyle = '#003366';
-                    ctx.textAlign = 'left';
-                    
-                    // Prefixo
-                    ctx.fillText(item.prefixo, 30, currentY + 28);
-                    
-                    // Dependência (truncated if needed)
-                    ctx.font = '14px Segoe UI';
-                    ctx.fillStyle = '#333333';
-                    const maxDepWidth = 200;
-                    const truncatedDep = this.truncateText(ctx, item.dependencia, maxDepWidth);
-                    ctx.fillText(truncatedDep, 110, currentY + 28);
-                    
-                    // Carteira
-                    ctx.font = 'bold 14px Segoe UI';
-                    ctx.fillText(item.carteira, 320, currentY + 28);
-                    
-                    // Numeric values with colors
-                    ctx.textAlign = 'right';
-                    
-                    // Ating Mês
-                    ctx.font = 'bold 14px Segoe UI';
-                    ctx.fillStyle = this.getLightExportColor(item.atingMes, true);
-                    ctx.fillText(this.formatCompact(item.atingMes, true), 420, currentY + 28);
-                    
-                    // Nec Dia
-                    ctx.font = '13px Segoe UI';
-                    ctx.fillStyle = '#666666';
-                    ctx.fillText(this.formatCompact(item.necDia), 480, currentY + 28);
-                    
-                    // Rlz Dia
-                    ctx.fillText(this.formatCompact(item.rlzDia), 530, currentY + 28);
-                    
-                    // % Ating Dia
-                    ctx.font = 'bold 14px Segoe UI';
-                    ctx.fillStyle = this.getLightExportColor(item.atingDia, true);
-                    ctx.fillText(this.formatCompact(item.atingDia, true), width - 30, currentY + 28);
-                    
-                    currentY += rowHeight;
+                    dataByRede[rede].push(item);
                 });
-                
-                // Footer
-                ctx.fillStyle = '#003366';
-                ctx.fillRect(0, height - 40, width, 40);
-                
-                ctx.fillStyle = '#FFCC00';
-                ctx.font = 'bold 12px Segoe UI';
-                ctx.textAlign = 'center';
-                ctx.fillText('Super Barreiras - Banco do Brasil', width / 2, height - 15);
-                
-                // Download
-                canvas.toBlob((blob) => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
-                    a.download = `ranking_Desembolso_PF_Painel_${panelNumber}_${timestamp}.png`;
-                    a.href = url;
-                    a.click();
-                    URL.revokeObjectURL(url);
+
+                // Exportar cada rede separadamente
+                let exportCount = 0;
+                Object.entries(dataByRede).forEach(([rede, data]) => {
+                    // Re-ordenar os dados da rede pelo ranking
+                    data.sort((a, b) => {
+                        const valueA = a.atingMes !== undefined ? a.atingMes : (a.ating !== undefined ? a.ating : 0);
+                        const valueB = b.atingMes !== undefined ? b.atingMes : (b.ating !== undefined ? b.ating : 0);
+                        return valueB - valueA;
+                    });
+                    
+                    this.exportRedePanel(mobilizadorName, rede, data);
+                    exportCount++;
                 });
+
+                this.showAlert('success', `${exportCount} ranking(s) exportado(s) com sucesso! (um por rede)`);
             }
 
-            exportSinglePanel(mobilizadorName, mobilizador) {
+            exportRedePanel(mobilizadorName, rede, data) {
                 const canvas = document.getElementById('exportCanvas');
                 const ctx = canvas.getContext('2d');
                 
                 // Configure canvas size - narrower and condensed
-                const width = 650; // Reduced width
-                const rowHeight = 38; // Condensed height
-                const headerHeight = 180;
-                const rows = mobilizador.data.length;
+                const width = 650;
+                const rowHeight = 38;
+                const headerHeight = 200;
+                const rows = data.length;
                 const height = headerHeight + (rows * rowHeight) + 80;
                 
                 canvas.width = width;
@@ -1093,35 +1024,35 @@
                 ctx.fillRect(0, 0, width, height);
                 
                 // Header with gradient
-                const gradient = ctx.createLinearGradient(0, 0, 0, 130);
+                const gradient = ctx.createLinearGradient(0, 0, 0, 150);
                 gradient.addColorStop(0, '#003366');
                 gradient.addColorStop(1, '#004080');
                 ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, width, 130);
+                ctx.fillRect(0, 0, width, 150);
                 
                 // Yellow accent
                 ctx.fillStyle = '#FFCC00';
-                ctx.fillRect(0, 130, width, 6);
+                ctx.fillRect(0, 150, width, 6);
                 
-                // Title - LARGE FONT
+                // Title - mobilizador name
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = 'bold 38px Segoe UI';
+                ctx.font = 'bold 34px Segoe UI';
                 ctx.textAlign = 'center';
-                ctx.fillText(mobilizadorName.toUpperCase(), width / 2, 55);
+                ctx.fillText(mobilizadorName.toUpperCase(), width / 2, 50);
                 
-                // Subtitle
-                ctx.font = '20px Segoe UI';
+                // Subtitle - rede name
+                ctx.font = 'bold 24px Segoe UI';
                 ctx.fillStyle = '#FFCC00';
-                ctx.fillText('MOBILIZADORES', width / 2, 85);
+                ctx.fillText(rede, width / 2, 85);
                 
                 // Date and count
                 ctx.font = '14px Segoe UI';
                 ctx.fillStyle = '#FFFFFF';
                 const date = new Date().toLocaleDateString('pt-BR');
-                ctx.fillText(`${date} • ${rows} registros`, width / 2, 110);
+                ctx.fillText(`${date} • ${rows} registros`, width / 2, 115);
                 
                 // Table header
-                const tableY = 150;
+                const tableY = 170;
                 ctx.fillStyle = '#F5F5F5';
                 ctx.fillRect(15, tableY, width - 30, 32);
                 
@@ -1130,7 +1061,7 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(15, tableY, width - 30, 32);
                 
-                // Table headers - LARGER FONTS
+                // Table headers
                 ctx.fillStyle = '#003366';
                 ctx.font = 'bold 15px Segoe UI';
                 ctx.textAlign = 'left';
@@ -1153,7 +1084,7 @@
                 // Table rows
                 let currentY = tableY + 32;
                 
-                mobilizador.data.forEach((item, index) => {
+                data.forEach((item, index) => {
                     // Alternating row colors
                     if (index % 2 === 0) {
                         ctx.fillStyle = '#FAFAFA';
@@ -1168,7 +1099,7 @@
                     ctx.lineTo(width - 15, currentY + rowHeight);
                     ctx.stroke();
                     
-                    // Data - LARGER FONTS
+                    // Data
                     ctx.font = 'bold 14px Segoe UI';
                     ctx.fillStyle = '#003366';
                     ctx.textAlign = 'left';
@@ -1239,12 +1170,11 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
-                    a.download = `ranking_${mobilizadorName.replace(/\s+/g, '_')}_${timestamp}.png`;
+                    const fileName = `ranking_${mobilizadorName.replace(/\s+/g, '_')}_${rede.replace(/\s+/g, '_')}_${timestamp}.png`;
+                    a.download = fileName;
                     a.href = url;
                     a.click();
                     URL.revokeObjectURL(url);
-                    
-                    this.showAlert('success', `Ranking exportado com sucesso!`);
                 });
             }
 
@@ -1316,6 +1246,7 @@
         
         console.log('🚀 Sistema de Análise de Rankings inicializado');
         console.log('📋 Mobilizadores configurados:', Object.keys(analyzer.mobilizadores));
+        console.log('🌐 Redes mapeadas:', Object.keys(analyzer.carteiraToRede).length, 'carteiras');
     </script>
 </body>
 </html>
