@@ -979,8 +979,9 @@
                 const dataByRede = {};
                 
                 mobilizador.data.forEach(item => {
-                    const carteira = item.carteira;
-                    const rede = this.carteiraToRede[carteira] || 'REDE NÃO IDENTIFICADA';
+                    // Usar o prefixo (código da agência) para identificar a rede
+                    const prefixo = item.prefixo.trim();
+                    const rede = this.carteiraToRede[prefixo] || 'REDE NÃO IDENTIFICADA';
                     
                     if (!dataByRede[rede]) {
                         dataByRede[rede] = [];
